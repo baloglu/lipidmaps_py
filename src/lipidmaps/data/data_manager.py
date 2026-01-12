@@ -549,7 +549,7 @@ class DataManager(BaseModel):
             return []
 
         try:
-            checker = ReactionChecker(base_url="http://localhost")
+            checker = ReactionChecker(base_url="https://dev.lipidmaps.org")
             response = checker.check_reactions(lm_ids)
             logger.info(f"Retrieved {len(response.reactions)} reactions for {len(lm_ids)} LM IDs\n")
             # print(response.reactions)
@@ -670,7 +670,7 @@ class DataManager(BaseModel):
         plt.savefig(output_path)
         plt.close()
         logger.info(f"Reactions tree plot saved to {output_path}")
-        
+
     def print_report(self) -> None:
         """Print the most recent validation report if available."""
         if not self.validation_report:
