@@ -4,7 +4,7 @@ import re
 from typing import List, Tuple, Dict, Any, Union, Optional
 from pathlib import Path
 import pandas as pd
-import networkx as nx
+# import networkx as nx
 from pydantic import BaseModel, Field, field_validator
 
 # import the data models we will produce
@@ -623,53 +623,53 @@ class DataManager(BaseModel):
             for lipid in lipids:
                 lipid.reactions = rxns
 
-    def build_reactions_tree_from_reactions(self, reactions: list) -> nx.DiGraph:
-        """
-        Build a directed graph (tree) of reactions from a list of ReactionData.
-        Each node is a compound (by LM ID or name), edges represent reactions.
-        """
-        G = nx.DiGraph()
-        for reaction in reactions:
-            # Check for reactants/products attributes
-            if hasattr(reaction, "reactants") and hasattr(reaction, "products"):
-                for reactant in reaction.reactants:
-                    for product in reaction.products:
-                        G.add_edge(
-                            reactant.display_name(),
-                            product.display_name(),
-                            reaction_id=getattr(reaction, "reaction_id", None),
-                            reaction_name=getattr(reaction, "reaction_name", None),
-                        )
-            else:
-                logger.warning(f"Reaction object missing reactants/products: {reaction}")
-        return G
+    # def build_reactions_tree_from_reactions(self, reactions: list) -> nx.DiGraph:
+    #     """
+    #     Build a directed graph (tree) of reactions from a list of ReactionData.
+    #     Each node is a compound (by LM ID or name), edges represent reactions.
+    #     """
+    #     G = nx.DiGraph()
+    #     for reaction in reactions:
+    #         # Check for reactants/products attributes
+    #         if hasattr(reaction, "reactants") and hasattr(reaction, "products"):
+    #             for reactant in reaction.reactants:
+    #                 for product in reaction.products:
+    #                     G.add_edge(
+    #                         reactant.display_name(),
+    #                         product.display_name(),
+    #                         reaction_id=getattr(reaction, "reaction_id", None),
+    #                         reaction_name=getattr(reaction, "reaction_name", None),
+    #                     )
+    #         else:
+    #             logger.warning(f"Reaction object missing reactants/products: {reaction}")
+    #     return G
     
-    def generate_pyplot_reactions_tree(self, tree: nx.DiGraph, output_path: Union[str, Path] = "reactions_tree.png") -> None:
-        """
-        Generate and save a matplotlib plot of the reactions tree.
-        Args:
-            tree: Directed graph of reactions.
-            output_path: Path to save the generated plot image.
-        """
-        import matplotlib.pyplot as plt
+    # def generate_pyplot_reactions_tree(self, tree: nx.DiGraph, output_path: Union[str, Path] = "reactions_tree.png") -> None:
+    #     """
+    #     Generate and save a matplotlib plot of the reactions tree.
+    #     Args:
+    #         tree: Directed graph of reactions.
+    #         output_path: Path to save the generated plot image.
+    #     """
+    #     import matplotlib.pyplot as plt
 
-        plt.figure(figsize=(26, 12))  # Increase figure size for clarity
-        pos = nx.spring_layout(tree, k=0.5, iterations=100)  # k controls spacing, increase for more space
-        nx.draw(
-            tree,
-            pos,
-            with_labels=True,
-            node_size=500,
-            node_color="lightblue",
-            font_size=8,
-            font_weight="bold",
-            edge_color="gray",
-            arrows=True,
-        )
-        plt.tight_layout()
-        plt.savefig(output_path)
-        plt.close()
-        logger.info(f"Reactions tree plot saved to {output_path}")
+    #     plt.figure(figsize=(26, 12))  # Increase figure size for clarity
+    #     pos = nx.spring_layout(tree, k=0.5, iterations=100)  # k controls spacing, increase for more space
+    #     nx.draw(
+    #         tree,
+    #         pos,
+    #         with_labels=True,
+    #         node_size=500,
+    #         node_color="lightblue",
+    #         font_size=8,
+    #         font_weight="bold",
+    #         edge_color="gray",
+    #         arrows=True,
+    #     )
+    #     plt.tight_layout()
+    #     plt.savefig(output_path)
+    #     plt.close()
+    #     logger.info(f"Reactions tree plot saved to {output_path}")
 
     def print_report(self) -> None:
         """Print the most recent validation report if available."""
@@ -680,6 +680,23 @@ class DataManager(BaseModel):
             return
         self.validation_report.print_report()
 
+
+    def summarize_csv(self, dataset: LipidDataset) -> Dict[str, Any]:
+        """
+        Summarize a quantitative CSV file and return a JSON-style dict with key stats and structure.
+        Includes: number of samples, number of lipids, sample IDs, lipid names, and column info.
+        """
+        summary = {
+            "num_samples": len(dataset.list_samples()),
+            "num_lipids": len(dataset.list_lipids()),
+            "num_lm_ids": len(dataset.list_lipids_with_lmid()),
+            # "sample_ids": dataset.list_samples() if hasattr(dataset, 'list_samples') else [s.sample_id for s in dataset.samples],
+            # "lipid_names": dataset.list_lipids() if hasattr(dataset, 'list_lipids') else [l.input_name for l in dataset.lipids],
+            "column_info": getattr(dataset, 'column_info', None),
+        }
+
+        return summary
+    
     def dataset_dict(self) -> Dict[str, Any]:
         """Serialize the dataset to plain dict for JSON output or downstream analysis."""
         if self.dataset is None:

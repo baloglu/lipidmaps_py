@@ -45,6 +45,10 @@ class QuantifiedLipid(BaseModel):
     reactions: Optional[List[SampleReactionInfo]] = None
     weight: Optional[float] = None  # For species or class-level reaction
 
+    @property
+    def recognized(self) -> bool:
+        return self.standardized_name is not None
+    
     def zscore(self) -> Dict[str, float]:
         vals = np.array(list(self.values.values()))
         mean = np.mean(vals)
@@ -91,11 +95,11 @@ class LipidDataset(BaseModel):
         print(f"Values: {lipid.values}")
 
 
-    def print_table(self, dataset):
+    def print_table(self):
         samples = self.list_samples()
         header = ["Lipid"] + samples
         print("\t".join(header))
-        for lipid in dataset.lipids:
+        for lipid in self.lipids:
             row = [lipid.input_name]
             for s in samples:
                 v = lipid.values.get(s)

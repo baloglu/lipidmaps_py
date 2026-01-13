@@ -12,16 +12,15 @@ setup(
         "pandas",
         "numpy",
         "requests",
-        "networkx",
-        "matplotlib",
     ],
     extras_require={
         "dev": [
             "pytest>=7.0",
             "pytest-cov",
+            "pytest-html",
             "black",
             "flake8",
-            "mypy",
+            "mypy"
         ],
     },
     classifiers=[
@@ -29,5 +28,5 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.9",
 )
