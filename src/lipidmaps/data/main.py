@@ -111,7 +111,9 @@ def main() -> None:
 
     # Dataset is now ready; perform reaction fetching/annotation and display selected lipids
     logger.info(f"Dataset ready: {len(dataset.samples)} samples, {len(dataset.lipids)} lipids")
-    logger.info(f"Sample column info: {dataset.samples[:4]}")
+    logger.info(f"Sample column info: {dataset.samples}")
+    logger.info(f"Samples: {dataset.list_samples()[:5]}")
+    # logger.info(f"Lipids: {dataset.print_table(dataset)}")
 
     # Optionally fill missing LM IDs using LMSD and report what changed
     if getattr(args, "fill_lmsd", False):
@@ -123,6 +125,7 @@ def main() -> None:
     if getattr(args, "fill_headgroups", False):
         updated_count = manager.fill_missing_lm_ids_from_headgroups(dataset)
         logger.info(f"Filled {updated_count} missing LM IDs using headgroup mapping")
+        
     group_stats = manager.get_group_statistics()
     logger.info(f"Computed statistics for {len(group_stats)} groups")
     for group_name, stats in group_stats.items():
@@ -130,19 +133,21 @@ def main() -> None:
             f"{group_name} -> {stats['sample_count']} samples, {stats['lipid_coverage']} lipids"
         )
 
-    from .print_utils import print_annotated_lipids_with_reactions
-    from .reaction_checker import ReactionChecker
-    from .models.reaction import Reaction
-
     # Fetch reactions for all LM IDs in the dataset 
     reactions = manager.fetch_reactions_for_lm_ids(dataset)
     manager.annotate_lipids_with_reactions(reactions)
-    print_annotated_lipids_with_reactions(manager, n=100)
+    logger.info(f"Lipids with reactions: {dataset.list_lipids_with_reactions()[:2]}")
+    lipid_objects = dataset.find_lipids("TG 22:0_18:1_18:2")
+    for lipid in lipid_objects[:2]:  # Print info for first 2 matches
+        dataset.print_lipid_info(lipid)
 
-    tree = manager.build_reactions_tree_from_reactions(reactions)
-    print(f"Built reactions tree with {tree.number_of_nodes()} nodes and {tree.number_of_edges()} edges")
-    # To visualize or traverse:
-    manager.generate_pyplot_reactions_tree(tree, output_path="reactions_tree.png")
+    lipid_objects_with_reactions = dataset.get_lipids_with_reactions()
+    logger.info(f"Total lipids with reactions: {len(lipid_objects_with_reactions)}")
+    for lipid in lipid_objects_with_reactions[:2]:  # Print info for first 2 matches
+        dataset.print_lipid_info(lipid)
+
+    for lipid in dataset.lipids[:2]:  # Print table for first 2 lipids
+        print(f"Lipid: {lipid.input_name}, Recognized: {lipid.recognized}, LM ID: {lipid.lm_id}, Reactions: {[r.reaction_name for r in (lipid.reactions or [])]}, Values: {lipid.values}")
 
 
 if __name__ == "__main__":

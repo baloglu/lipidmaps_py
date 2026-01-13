@@ -1,6 +1,16 @@
 # lipidmaps_py
 
-A Python package to interface with the LIPID MAPS database.
+A Python package providing tools to ingest, normalize, validate, and manage lipidomics datasets and to interface with LIPID MAPS resources.
+
+This project is intended for researchers and developers working with mass-spectrometry lipidomics data who need reproducible preprocessing (ingestion, normalization, and QC), integration with RefMet identifiers, and programmatic access to dataset management utilities.
+
+## Purpose
+
+- Provide robust CSV/TSV ingestion with flexible column handling and format detection.
+- Normalize lipid names to RefMet where possible so downstream analyses work with standardized identifiers.
+- Validate datasets and generate concise QC reports highlighting missing values, format inconsistencies, and common data issues.
+- Offer a `DataManager` abstraction for working with quantified lipids, samples, and simple cohort metadata.
+- Lay the groundwork for LIPID MAPS API integration (LM ID lookup) and reaction-analysis features.
 
 ## Development Status
 
@@ -18,11 +28,9 @@ A Python package to interface with the LIPID MAPS database.
 ## Installation
 
 ### Prerequisites
-- Python 3.8 or higher (with SQLite3 support if test coverage report is used)
-- pip (Python package installer)
-- If you use networkx functions, 3.10+ is ideal
+- Python 3.9 or higher
 
-> **Note**: If you encounter `ModuleNotFoundError: No module named '_sqlite3'`, your Python installation was built without SQLite support. Either:
+> **Note**: Test functions require sqlite3 support in python. If you encounter `ModuleNotFoundError: No module named '_sqlite3'`, your Python installation was built without SQLite support. Either:
 > - Use your system's Python (e.g., `python3` instead of a custom-built Python)
 > - Rebuild Python with SQLite development libraries installed (`sudo dnf install sqlite-devel` on AlmaLinux/Fedora/RHEL, then rebuild Python)
 
@@ -36,18 +44,18 @@ cd lipidmaps_py
 
 2. Create a virtual environment (recommended):
 ```bash
-# Use system Python if your custom Python lacks SQLite support
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-3. Install the package in development mode:
+3. Install the package:
 ```bash
-pip install -e .
+pip install .
 ```
+
 or to include dev requirements
 ```bash
-pip install .[dev]
+pip install -e .[dev]
 ```
 
 4. Install development dependencies (optional and if you haven't already used .[dev], for running tests):
@@ -104,70 +112,27 @@ PYTEST_ADDOPTS="" pytest -q
 
 ```python
 from lipidmaps.data.data_manager import DataManager
-from lipidmaps.data.ingestion import CSVIngestion
-
-# Load a CSV file
-ingestion = CSVIngestion("path/to/your/data.csv")
-raw_data = ingestion.load()
 
 # Create a DataManager instance
-dm = DataManager(raw_data)
+manager = DataManager()
 
-# Access quantified lipids
-for lipid in dm.get_quantified_lipids():
-    print(f"{lipid.name}: {lipid.abundance}")
-```
+# Load a CSV file. The package includes sample datasets in the `tests/data/inputs/` directory:
+dataset = manager.process_csv("path/to/your/data.csv")
 
-### Working with Sample Data
+# Csv file is processed into an object with iterable samples and lipids data
+# samples - the list of SampleMetadata type objects with sample_id, group and label attributes
+print(dataset.samples[:1]) 
 
-The package includes sample datasets in the `tests/data/inputs/` directory:
+# lipids - the list of QuantifiedLipid type objects with input_name, standardized_name, lm_id, recognized and values object "sample_id": "value"
+print(dataset.lipids[:1]) 
 
-```python
-from lipidmaps.data.data_manager import DataManager
-from lipidmaps.data.ingestion import CSVIngestion
+# List first 5 samples 
+print(f"Samples: {dataset.list_samples()[:5]}")
 
-# Load the demo dataset
-ingestion = CSVIngestion("tests/data/inputs/small_demo.csv")
-raw_data = ingestion.load()
+# List first 5 lipids
+print(f"Lipids: {dataset.list_lipids()[:5]}")
 
-# Create DataManager
-dm = DataManager(raw_data)
 
-# Get dataset information
-print(f"Number of lipids: {len(dm.get_quantified_lipids())}")
-print(f"Number of samples: {len(dm.get_samples())}")
-```
-
-### Data Validation
-
-```python
-from lipidmaps.data.ingestion import CSVIngestion
-from lipidmaps.data.validation import DataValidator
-
-# Load and validate data
-ingestion = CSVIngestion("path/to/data.csv")
-raw_data = ingestion.load()
-
-validator = DataValidator(raw_data)
-report = validator.validate()
-
-# Print validation issues
-for issue in report.get_all_issues():
-    print(f"{issue.severity}: {issue.message}")
-```
-
-### RefMet Standardization
-
-```python
-from lipidmaps.data.models.refmet import RefMet
-
-# Standardize lipid names
-refmet = RefMet()
-result = refmet.standardize("PC(16:0/18:1)")
-
-if result.success:
-    print(f"Standardized name: {result.standardized_name}")
-    print(f"RefMet ID: {result.refmet_id}")
 ```
 
 ## Example Datasets

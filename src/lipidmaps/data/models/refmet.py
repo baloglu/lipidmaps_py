@@ -40,7 +40,7 @@ class RefMet:
         try:
             logger.info("Sending request to RefMet API")
             response = requests.post(
-                RefMet.MWBaseURL, data=data, verify=False, timeout=20
+                RefMet.MWBaseURL, data=data, verify=True, timeout=20
             )
             response.raise_for_status()
         except requests.RequestException as e:
@@ -168,9 +168,9 @@ class RefMet:
                 refmet_results.append(lookup[name])
             else:
                 refmet_results.append(RefMetResult(input_name=name))
-            logger.info(
-                f"Validated '{name}' -> standardized: '{refmet_results[-1].standardized_name}', lm_id: {refmet_results[-1].lm_id}"
-            )
+            # logger.info(
+            #     f"Validated '{name}' -> standardized: '{refmet_results[-1].standardized_name}', lm_id: {refmet_results[-1].lm_id}"
+            # )
 
         logger.info(f"Annotated {len(refmet_results)} metabolites via RefMet")
         return refmet_results

@@ -141,9 +141,8 @@ class ReactionChecker(BaseModel):
                 except Exception:
                     body = "<unavailable>"
                 logger.error(
-                    "Reaction API returned HTTP %s: %s",
-                    response.status_code,
-                    body,
+                    "Reaction API returned HTTP %s",
+                    response.status_code
                 )
                 raise
 
@@ -196,5 +195,5 @@ class ReactionChecker(BaseModel):
                     body = resp.text
                 except Exception:
                     body = "<unavailable>"
-            logger.error("Reaction API call failed: %s; response: %s", e, body)
+            logger.error("Reaction API call failed: %s", e)
             return ReactionResponse(reactions=[], error=str(e))
