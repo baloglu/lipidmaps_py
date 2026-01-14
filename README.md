@@ -132,6 +132,16 @@ print(f"Samples: {dataset.list_samples()[:5]}")
 # List first 5 lipids
 print(f"Lipids: {dataset.list_lipids()[:5]}")
 
+# Update LIPID MAPS ids by headgroups
+# fill_missing_lm_ids_from_headgroups(dataset) will assign headgroup LIPID MAPS ids to lipids and return the updated count.
+updated_count = manager.fill_missing_lm_ids_from_headgroups(dataset)
+
+# List lipid names where an lm id is assigned
+print(f"Lipid names with assigned lm ids: {dataset.list_lipids_with_lmid()[:5]}")
+
+# Find lipids by name. This function will return array of lipid objects where query is found within input_name or standard_name 
+queried_lipids = dataset.find_lipids("query")
+
 
 ```
 

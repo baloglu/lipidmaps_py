@@ -147,7 +147,7 @@ def main() -> None:
         dataset.print_lipid_info(lipid)
 
     for lipid in dataset.lipids[:2]:  # Print table for first 2 lipids
-        print(f"Lipid: {lipid.input_name}, Recognized: {lipid.recognized}, LM ID: {lipid.lm_id}, Reactions: {[r.reaction_name for r in (lipid.reactions or [])]}, Values: {lipid.values}")
+        print(f"Lipid: {lipid.input_name}, Recognized: {lipid.recognized}, LM ID: {lipid.lm_id}, Reactions: {[r.reaction_name for r in (lipid.reactions or [])]}")
 
 
 if __name__ == "__main__":
