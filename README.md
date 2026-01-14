@@ -139,10 +139,13 @@ updated_count = manager.fill_missing_lm_ids_from_headgroups(dataset)
 # List lipid names where an lm id is assigned
 print(f"Lipid names with assigned lm ids: {dataset.list_lipids_with_lmid()[:5]}")
 
-# Find lipids by name. This function will return array of lipid objects where query is found within input_name or standard_name 
+# Find lipids by name. This function will return array of lipid objects where query is found within input_name or standard_name.
 queried_lipids = dataset.find_lipids("query")
 
-
+# Get quantified values for given lipid name. This function will return an object for lipid values {"sample_id": "lipid_value"} 
+lipid_name = "lipid name"
+values = dataset.get_values(lipid_name)
+print(f"Values for {lipid_name}: {values}")
 ```
 
 ## Example Datasets

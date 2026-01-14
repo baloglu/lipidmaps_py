@@ -111,7 +111,18 @@ class LipidDataset(BaseModel):
             if l.lm_id == lipid_id:
                 return l.values.get(sample_id)
         return None
-    
+
+    def get_values(self, lipid_name: str) -> Optional[Dict[str, float]]:
+        """
+        Return the values dict for a lipid, matching input_name case-insensitively.
+        Returns None if not found.
+        """
+        name_lc = lipid_name.lower()
+        for l in self.lipids:
+            if (l.input_name or '').lower() == name_lc:
+                return l.values
+        return None
+        
     def get_grouped_data(self) -> Dict[str, List[QuantifiedLipid]]:
         grouped = {}
         for sample in self.samples:

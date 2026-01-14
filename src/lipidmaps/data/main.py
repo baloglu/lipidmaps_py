@@ -141,6 +141,9 @@ def main() -> None:
     for lipid in lipid_objects[:2]:  # Print info for first 2 matches
         dataset.print_lipid_info(lipid)
 
+    name = "TG 22:0_18:1_18:2"
+    print(dataset.get_values(name))
+    
     lipid_objects_with_reactions = dataset.get_lipids_with_reactions()
     logger.info(f"Total lipids with reactions: {len(lipid_objects_with_reactions)}")
     for lipid in lipid_objects_with_reactions[:2]:  # Print info for first 2 matches
