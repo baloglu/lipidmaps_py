@@ -19,11 +19,11 @@ This project is intended for researchers and developers working with mass-spectr
 - **Data Normalization**: RefMet standardization
 - **Quality Control**: Data validation and issue reporting
 - **Data Management**: DataManager for handling quantified lipid datasets
-- **Sample Metadata**: Support for experimental metadata and conditions
 
 ### 🚧 In Progress
 - **LIPID MAPS API Integration**: LM ID lookup and validation
 - **Reaction Analysis**: Integration with LIPID MAPS reactions database
+- **Sample Metadata**: Support for experimental metadata and conditions
 
 ## Installation
 
