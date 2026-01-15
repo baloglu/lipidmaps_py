@@ -70,6 +70,15 @@ Test that the package is correctly installed:
 python -c "import lipidmaps; print('Installation successful')"
 ```
 
+### API Documentation
+
+By using mkdocs package, you can view API documentation locally
+```bash
+pip install mkdocs mkdocs-material mkdocstrings[python]
+mkdocs build
+mkdocs serve
+```
+
 ## Running Tests & Reports
 
 The package ships with a comprehensive pytest configuration (`pytest.ini`) that automatically:
