@@ -1,0 +1,19 @@
+site_name: LIPID MAPS Python API
+theme:
+  name: material
+
+nav:
+  - Home: index.md
+  - API: api.md
+  - MODELS: models.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_root_heading: true
+
+extra:
+  repo_url: https://github.com/s-andrews/lipidmaps_py

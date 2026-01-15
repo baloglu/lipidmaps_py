@@ -1,4 +1,4 @@
-name: Run tests and coverage
+name: Run tests and coverage for LIPID MAPS Python API
 
 on:
   push:
