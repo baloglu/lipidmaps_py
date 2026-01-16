@@ -1,7 +1,9 @@
-import streamlit as st
 
+import streamlit as st
 import os
 import sys
+import pandas as pd
+from lipidmaps.data.data_manager import DataManager
 
 # Add src/ to sys.path to import package modules
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -9,116 +11,104 @@ src_path = os.path.abspath(os.path.join(dir_path, '../src'))
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
-# Import DataManager from lipidmaps
 try:
-    from lipidmaps.data.data_manager import DataManager
+    from lipidmaps import process_csv
 except ImportError:
-    st.error("Could not import DataManager. Please check your package structure.")
+    st.error("Could not import process_csv. Please check your package structure.")
     st.stop()
 
 st.title("LIPID MAPS Quantitative Data Demo")
-
 st.markdown("""
-Upload a quantitative CSV file to explore and process it using the LIPID MAPS package.
+Select a file from the test data directory or upload your own CSV file. Preview the file, then process it to see standardized lipid annotations.
 """)
 
+# List files in tests/data/inputs
+test_data_dir = os.path.abspath(os.path.join(dir_path, '../tests/data/inputs'))
+test_files = [f for f in os.listdir(test_data_dir) if f.endswith('.tsv')]
 
-uploaded_file = st.file_uploader("Upload quantitative CSV file", type=["csv"])
+st.subheader("Choose a test file or upload your own")
+selected_file = st.selectbox("Select a test CSV file", ["(none)"] + test_files)
+uploaded_file = st.file_uploader("Or upload a CSV file", type=["csv"])
 
-if uploaded_file:
+file_to_use = None
+if uploaded_file is not None:
+    import tempfile
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+        tmp.write(uploaded_file.read())
+        file_to_use = tmp.name
+elif selected_file and selected_file != "(none)":
+    file_to_use = os.path.join(test_data_dir, selected_file)
+
+if file_to_use:
+
+    st.write("Preview of selected data:")
     try:
-        # Save uploaded file to a temporary location
-        import tempfile
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
-            tmp.write(uploaded_file.read())
-            tmp_path = tmp.name
-
-        st.write("Preview of uploaded data:")
-        import pandas as pd
-        df = pd.read_csv(tmp_path)
-        st.dataframe(df.head())
-
-        st.subheader("LIPID MAPS DataManager Demo")
-        mgr = DataManager()
-        dataset = mgr.process_csv(tmp_path)
-
-
-        # List samples
-        if st.checkbox("List samples"):
-            st.write(dataset.list_samples())
-
-        # List lipids
-        if st.checkbox("List lipids"):
-            st.write(dataset.list_lipids())
-
-        # List lipids with LMID
-        if st.checkbox("List lipids with LMID"):
-            st.write(dataset.list_lipids_with_lmid())
-
-        # List lipids with reactions
-        if st.checkbox("List lipids with reactions"):
-            st.write(dataset.list_lipids_with_reactions())
-
-        # Show lipids with reactions (full objects)
-        if st.checkbox("Show lipids with reactions (details)"):
-            lipids = dataset.get_lipids_with_reactions()
-            for l in lipids:
-                st.markdown("---")
-                st.write({
-                    "Input name": l.input_name,
-                    "LM ID": l.lm_id,
-                    "Reactions": [r.reaction_name for r in (l.reactions or [])],
-                    "Values": l.values
-                })
-
-        # Lipid info search (find_lipids)
-        search = st.text_input("Search lipid info (name or substring)")
-        if search:
-            matches = dataset.find_lipids(search)
-            if not matches:
-                st.warning(f"No lipids matching '{search}' found.")
-            else:
-                for m in matches:
-                    st.markdown("---")
-                    st.write({
-                        "Input name": m.input_name,
-                        "Recognized": bool(m.standardized_name or m.lm_id),
-                        "Standardized name": m.standardized_name,
-                        "LM ID": m.lm_id,
-                        "Values": m.values
-                    })
-
-        # Get value for a specific lipid/sample
-        with st.expander("Get value for lipid/sample"):
-            lipid_id = st.text_input("Lipid LMID for value lookup", key="lipid_id_lookup")
-            sample_id = st.text_input("Sample ID for value lookup", key="sample_id_lookup")
-            if lipid_id and sample_id:
-                value = dataset.get_value(lipid_id, sample_id)
-                st.write(f"Value for lipid {lipid_id} in sample {sample_id}: {value}")
-
-        # Show grouped data
-        if st.checkbox("Show grouped data (by sample group)"):
-            grouped = dataset.get_grouped_data()
-            for group, lipids in grouped.items():
-                st.markdown(f"### Group: {group}")
-                for l in lipids:
-                    st.write({"Input name": l.input_name, "Values": l.values})
-
-        # Show lipid x sample table
-        if st.checkbox("Show lipid x sample table"):
-            samples = dataset.list_samples()
-            table = []
-            for lipid in dataset.lipids:
-                row = {"Lipid": lipid.input_name}
-                for s in samples:
-                    v = lipid.values.get(s)
-                    row[s] = v if v is not None else ""
-                table.append(row)
-            st.dataframe(pd.DataFrame(table))
-
-        # Clean up temp file
-        os.remove(tmp_path)
+        _, ext = os.path.splitext(file_to_use)
+        if ext.lower() in [".tsv", ".txt"]:
+            df = pd.read_csv(file_to_use, sep="\t")
+        else:
+            df = pd.read_csv(file_to_use)
+        st.write(f"Rows: {df.shape[0]}, Columns: {df.shape[1]}")
+        st.dataframe(df)
     except Exception as e:
-        st.error(f"Error processing file: {e}")
+        st.error(f"Error reading file: {e}")
+
+    if "dataset" not in st.session_state:
+        st.session_state["dataset"] = None
+
+    col1, col2 = st.columns(2)
+    process_with_ver = col1.button("Process with verification")
+    process_without_ver = col2.button("Process without verification")
+
+    if process_with_ver or process_without_ver:
+        try:
+            dataset = process_csv(file_to_use, validate_data=process_with_ver)
+            st.session_state["dataset"] = dataset
+            # Build results table
+            result_rows = []
+            for lipid in dataset.lipids:
+                result_rows.append({
+                    "input_name": getattr(lipid, "input_name", None),
+                    "standardized_name": getattr(lipid, "standardized_name", None),
+                    "lm_id": getattr(lipid, "lm_id", None),
+                    "refmet": getattr(lipid, "refmet_id", None),
+                    "main_class": getattr(lipid, "main_class", None),
+                    "sub_class": getattr(lipid, "sub_class", None),
+
+                })
+            result_df = pd.DataFrame(result_rows)
+            st.subheader("Processed Lipid Annotations")
+            st.write(f"Rows: {result_df.shape[0]}, Columns: {result_df.shape[1]}")
+            st.dataframe(result_df)
+            # Validation info if requested
+            if process_with_ver and hasattr(dataset, 'validation_report') and dataset.validation_report:
+                st.subheader("Validation Report (Processed)")
+                st.write(f"Passed: {dataset.validation_report.passed}")
+                st.write(f"Issues: {len(dataset.validation_report.issues)}")
+                if dataset.validation_report.issues:
+                    st.write(dataset.validation_report.issues)
+        except Exception as e:
+            st.error(f"Error processing file: {e}")
+
+    # Button to use headgroups for missing lm_ids
+    if st.session_state.get("dataset") is not None:
+        if st.button("Use headgroups for LMIDs"):
+            updated = st.session_state["dataset"].fill_missing_lm_ids_from_headgroups()
+            st.success(f"Updated {updated} lipids using headgroup mapping.")
+            # Re-display the table
+            result_rows = []
+            for lipid in st.session_state["dataset"].lipids:
+                result_rows.append({
+                    "input_name": getattr(lipid, "input_name", None),
+                    "standardized_name": getattr(lipid, "standardized_name", None),
+                    "lm_id": getattr(lipid, "lm_id", None),
+                    "refmet": getattr(lipid, "refmet_id", None),
+                    "main_class": getattr(lipid, "main_class", None),
+                    "sub_class": getattr(lipid, "sub_class", None),
+                })
+            result_df = pd.DataFrame(result_rows)
+            st.subheader("Lipid Annotations After Headgroup Mapping")
+            st.write(f"Rows: {result_df.shape[0]}, Columns: {result_df.shape[1]}")
+            st.dataframe(result_df)
 else:
     st.info("Please upload a CSV file to begin.")

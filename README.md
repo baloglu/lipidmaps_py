@@ -164,6 +164,14 @@ values = dataset.get_values(lipid_name)
 print(f"Values for {lipid_name}: {values}")
 ```
 
+## Streamlit demo
+
+We have a basic streamlit demo script that you can try.
+
+```python
+pip install streamlit
+streamlit run scripts/streamlit_demo.py
+```
 ## Example Datasets
 
 Sample datasets are available in `tests/data/inputs/`:
