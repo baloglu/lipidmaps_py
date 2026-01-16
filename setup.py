@@ -20,7 +20,8 @@ setup(
             "pytest-html",
             "black",
             "flake8",
-            "mypy"
+            "mypy",
+            "streamlit",
         ],
     },
     classifiers=[
