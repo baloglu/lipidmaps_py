@@ -1,7 +1,8 @@
 from typing import List, Optional, Union, Any, Dict
 import logging
 
-from pydantic import BaseModel, Field, field_validator
+from .base import LipidmapsBaseModel
+from pydantic import Field, field_validator
 
 
 logger = logging.getLogger(__name__)
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 """ IN TEMPLATE PHASE"""
 
 
-class Reaction(BaseModel):
+class Reaction(LipidmapsBaseModel):
     """
     - reaction_id: identifier for the reaction
     """

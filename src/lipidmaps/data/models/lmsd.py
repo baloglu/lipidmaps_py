@@ -1,12 +1,12 @@
 import logging
 from typing import List, Dict, Optional, Union, Any
 import requests
-from pydantic import BaseModel
+from .base import LipidmapsBaseModel
 
 logger = logging.getLogger(__name__)
 
 
-class LMSDResult(BaseModel):
+class LMSDResult(LipidmapsBaseModel):
     input_name: Optional[str] = None
     name: Optional[str] = None
     lm_id: Optional[str] = None

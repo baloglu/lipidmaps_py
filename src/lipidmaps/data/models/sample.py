@@ -1,17 +1,25 @@
+
 import logging
 from typing import Any, List, Dict, Optional
-from pydantic import BaseModel
 import numpy as np
+from .base import LipidmapsBaseModel
 
 logger = logging.getLogger(__name__)
 
 
-class SampleMetadata(BaseModel):
+class SampleMetadata(LipidmapsBaseModel):
     sample_id: str
     group: str  # e.g., "Control", "WT"
     label: Optional[str] = None  # e.g., "Fasted", "Fed"
+        
+    def get_value_for_lipid(self, lipid: "QuantifiedLipid") -> Optional[float]:
+        """
+        Retrieve the quantitation value for a given QuantifiedLipid object.
+        Returns None if not found.
+        """
+        return lipid.values.get(self.sample_id)
 
-class SampleReactionInfo(BaseModel):
+class SampleReactionInfo(LipidmapsBaseModel):
     reaction_id: str
     reaction_name: str
     type: str  # "species-level" or "class-level"
@@ -21,7 +29,7 @@ class SampleReactionInfo(BaseModel):
     weight: Optional[float] = None  # e.g., for species-level reactions
     details: Optional[Dict[str, Any]] = None  # Additional reaction details
 
-class QuantifiedLipid(BaseModel):
+class QuantifiedLipid(LipidmapsBaseModel):
     input_name: str
     values: Dict[str, float]  # sample_id -> value
     pathway_ids: Optional[List[str]] = None  # e.g., KEGG or Reactome IDs
@@ -45,6 +53,14 @@ class QuantifiedLipid(BaseModel):
     reactions: Optional[List[SampleReactionInfo]] = None
     weight: Optional[float] = None  # For species or class-level reaction
 
+    def get_value_for_sample(self, sample: "SampleMetadata") -> Optional[float]:
+        """
+        Retrieve the quantitation value for a given SampleMetadata object.
+        Returns None if not found.
+        """
+        return self.values.get(sample.sample_id)
+
+    
     @property
     def recognized(self) -> bool:
         return self.standardized_name is not None
@@ -58,7 +74,7 @@ class QuantifiedLipid(BaseModel):
         }
 
 
-class LipidDataset(BaseModel):
+class LipidDataset(LipidmapsBaseModel):
 
     samples: List[SampleMetadata]
     lipids: List[QuantifiedLipid]
@@ -109,7 +125,15 @@ class LipidDataset(BaseModel):
         logger = logging.getLogger(__name__)
         logger.info(f"Updated {updated} lm_id fields using headgroup mapping (via LipidDataset)")
         return updated
-        
+
+    def get_value(self, sample: "SampleMetadata", lipid: "QuantifiedLipid") -> Optional[float]:
+        """
+        Retrieve the quantitation value for a given sample and lipid object.
+        Returns None if not found.
+        """
+        return lipid.values.get(sample.sample_id)
+
+
     def print_lipid_info(self, lipid):
         recognized = bool(lipid.standardized_name or lipid.lm_id)
         print(f"Input name: {lipid.input_name}")
@@ -131,11 +155,11 @@ class LipidDataset(BaseModel):
                 row.append("" if v is None else str(v))
             print("\t".join(row))
 
-    def get_value(self, lipid_id: str, sample_id: str) -> Optional[float]:
-        for l in self.lipids:
-            if l.lm_id == lipid_id:
-                return l.values.get(sample_id)
-        return None
+    # def get_value(self, lipid_id: str, sample_id: str) -> Optional[float]:
+    #     for l in self.lipids:
+    #         if l.lm_id == lipid_id:
+    #             return l.values.get(sample_id)
+    #     return None
 
     def get_values(self, lipid_name: str) -> Optional[Dict[str, float]]:
         """

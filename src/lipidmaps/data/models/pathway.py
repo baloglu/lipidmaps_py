@@ -1,14 +1,15 @@
 from typing import List, Any
 import logging
 
-from pydantic import BaseModel, field_validator
+from .base import LipidmapsBaseModel
+from pydantic import field_validator
 
 """ IN TEMPLATE PHASE"""
 
 logger = logging.getLogger(__name__)
 
 
-class Pathway(BaseModel):
+class Pathway(LipidmapsBaseModel):
     name: str
     reactions: List[Any]  # Replace Any with the actual Reaction type when defined
 
