@@ -499,6 +499,7 @@ class DataManager(BaseModel):
 
         return updated_count
 
+
     def fill_missing_lm_ids_from_headgroups(self, dataset: Optional[Any] = None) -> int:
         """
         Fill missing lm_id fields on QuantifiedLipid objects using headgroup mapping from headgroups.py.
@@ -507,27 +508,13 @@ class DataManager(BaseModel):
         Returns:
             Number of lipids updated with an lm_id.
         """
-
         if dataset is None:
             dataset = self.dataset
         if dataset is None or not hasattr(dataset, "lipids"):
             logger.warning("No dataset or lipids to fill with headgroup mapping.")
             return 0
-
-        updated = 0
-        for lipid in dataset.lipids:
-            if not getattr(lipid, "lm_id", None):
-                # Try to match headgroup by input_name prefix (e.g., 'PC(' matches 'PC')
-                match = re.match(r"^([A-Za-z0-9\-]+)", lipid.input_name)
-                if match:
-                    headgroup = match.group(1)
-                    lm_ids = lipidmaps_headgroups.get(headgroup)
-                    if lm_ids and lm_ids[0]:
-                        lipid.lm_id = lm_ids[0]
-                        lipid.lm_id_found_by = "headgroup"
-                        updated += 1
-        logger.info(f"Updated {updated} lm_id fields using headgroup mapping")
-        return updated
+        # Call the new method on LipidDataset
+        return dataset.fill_missing_lm_ids_from_headgroups()
 
     def fetch_reactions_for_lm_ids(self, dataset: Optional[Any] = None) -> List[Any]:
         """

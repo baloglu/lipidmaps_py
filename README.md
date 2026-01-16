@@ -120,13 +120,10 @@ PYTEST_ADDOPTS="" pytest -q
 ### Basic Usage
 
 ```python
-from lipidmaps.data.data_manager import DataManager
-
-# Create a DataManager instance
-manager = DataManager()
+from lipidmaps import process_csv
 
 # Load a CSV file. The package includes sample datasets in the `tests/data/inputs/` directory:
-dataset = manager.process_csv("path/to/your/data.csv")
+dataset = process_csv("path/to/your/data.csv")
 
 # Csv file is processed into an object with iterable samples and lipids data
 # samples - the list of SampleMetadata type objects with sample_id, group and label attributes
@@ -143,7 +140,7 @@ print(f"Lipids: {dataset.list_lipids()[:5]}")
 
 # Update LIPID MAPS ids by headgroups
 # fill_missing_lm_ids_from_headgroups(dataset) will assign headgroup LIPID MAPS ids to lipids and return the updated count.
-updated_count = manager.fill_missing_lm_ids_from_headgroups(dataset)
+updated_count = dataset.fill_missing_lm_ids_from_headgroups()
 
 # List lipid names where an lm id is assigned
 print(f"Lipid names with assigned lm ids: {dataset.list_lipids_with_lmid()[:5]}")

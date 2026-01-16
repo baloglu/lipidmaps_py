@@ -59,6 +59,7 @@ class QuantifiedLipid(BaseModel):
 
 
 class LipidDataset(BaseModel):
+
     samples: List[SampleMetadata]
     lipids: List[QuantifiedLipid]
     column_info: Optional[Dict[str, Any]] = None  # Metadata about CSV columns
@@ -85,6 +86,30 @@ class LipidDataset(BaseModel):
             if q in (l.input_name or "").lower() or (l.standardized_name and q in l.standardized_name.lower())
         ]
 
+    def fill_missing_lm_ids_from_headgroups(self) -> int:
+        """
+        Fill missing lm_id fields on QuantifiedLipid objects using headgroup mapping from headgroups.py.
+        Returns:
+            Number of lipids updated with an lm_id.
+        """
+        import re
+        from ..utils.headgroups import lipidmaps_headgroups
+        updated = 0
+        for lipid in self.lipids:
+            if not getattr(lipid, "lm_id", None):
+                match = re.match(r"^([A-Za-z0-9\-]+)", lipid.input_name)
+                if match:
+                    headgroup = match.group(1)
+                    lm_ids = lipidmaps_headgroups.get(headgroup)
+                    if lm_ids and lm_ids[0]:
+                        lipid.lm_id = lm_ids[0]
+                        lipid.lm_id_found_by = "headgroup"
+                        updated += 1
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Updated {updated} lm_id fields using headgroup mapping (via LipidDataset)")
+        return updated
+        
     def print_lipid_info(self, lipid):
         recognized = bool(lipid.standardized_name or lipid.lm_id)
         print(f"Input name: {lipid.input_name}")

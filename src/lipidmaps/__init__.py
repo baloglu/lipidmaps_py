@@ -17,6 +17,21 @@ Subpackages:
     - tools: Utility tools and helpers
 """
 
+# Convenience wrapper for direct CSV processing
+from .data.data_manager import DataManager
+
+
+def process_csv(csv_path, **kwargs):
+    """
+    Directly process a CSV file into a LipidDataset using DataManager.
+    Accepts all DataManager keyword arguments.
+    Example:
+        from lipidmaps import process_csv
+        dataset = process_csv("your_file.csv", validate_data=True)
+    """
+    manager = DataManager(**kwargs)
+    return manager.process_csv(csv_path)
+
 from .data_importer import import_data, import_msdial, LipidData
 
 # Import subpackages to make them accessible
