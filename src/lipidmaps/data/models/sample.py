@@ -118,7 +118,7 @@ class LipidDataset(LipidmapsBaseModel):
                     headgroup = match.group(1)
                     lm_ids = lipidmaps_headgroups.get(headgroup)
                     if lm_ids and lm_ids[0]:
-                        lipid.lm_id = lm_ids[0]
+                        lipid.generic_lm_id = lm_ids[0]
                         lipid.lm_id_found_by = "headgroup"
                         updated += 1
         import logging
