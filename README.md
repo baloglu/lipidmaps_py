@@ -198,7 +198,8 @@ lipidmaps_py/
 ├── tests/                   # Test suite
 │   └── data/               # Data module tests
 │       └── inputs/         # Sample datasets
-└── docs/                    # Documentation
+├── docs/                    # Documentation
+└── scripts/                 # Demo scripts
 ```
 
 ## Troubleshooting
