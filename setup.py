@@ -22,6 +22,7 @@ setup(
             "flake8",
             "mypy",
             "streamlit",
+            "plotly",
         ],
     },
     classifiers=[

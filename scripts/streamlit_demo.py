@@ -3,6 +3,7 @@ import streamlit as st
 import os
 import sys
 import pandas as pd
+import plotly.express as px
 from lipidmaps.data.data_manager import DataManager
 
 # Add src/ to sys.path to import package modules
@@ -77,6 +78,23 @@ if file_to_use:
                 st.subheader("Processed Lipid Annotations")
                 st.write(f"Rows: {result_df.shape[0]}, Columns: {result_df.shape[1]}")
                 st.dataframe(result_df)
+                
+                # Display pie chart for main_classes
+                if "main_class" in result_df.columns:
+                    main_class_counts = result_df["main_class"].value_counts()
+                    if len(main_class_counts) > 0:
+                        st.subheader("Main Class Distribution")
+                        fig = px.pie(values=main_class_counts.values, names=main_class_counts.index)
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                # Display pie chart for found lm_ids
+                if "lm_id" in result_df.columns:
+                    lm_id_counts = result_df["lm_id"].notna().value_counts()
+                    if len(lm_id_counts) > 0:
+                        st.subheader("LM ID Found Distribution")
+                        fig = px.pie(values=lm_id_counts.values, names=["LM ID Found" if x else "LM ID Not Found" for x in lm_id_counts.index])
+                        st.plotly_chart(fig, use_container_width=True)
+                
                 # Validation info
                 if mgr.validation_report:
                     st.subheader("Validation Report (Processed)")
@@ -107,6 +125,22 @@ if file_to_use:
                 st.subheader("Processed Lipid Annotations")
                 st.write(f"Rows: {result_df.shape[0]}, Columns: {result_df.shape[1]}")
                 st.dataframe(result_df)
+                
+                # Display pie chart for main_classes
+                if "main_class" in result_df.columns:
+                    main_class_counts = result_df["main_class"].value_counts()
+                    if len(main_class_counts) > 0:
+                        st.subheader("Main Class Distribution")
+                        fig = px.pie(values=main_class_counts.values, names=main_class_counts.index)
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                # Display pie chart for found lm_ids
+                if "lm_id" in result_df.columns:
+                    lm_id_counts = result_df["lm_id"].notna().value_counts()
+                    if len(lm_id_counts) > 0:
+                        st.subheader("LM ID Found Distribution")
+                        fig = px.pie(values=lm_id_counts.values, names=["LM ID Found" if x else "LM ID Not Found" for x in lm_id_counts.index])
+                        st.plotly_chart(fig, use_container_width=True)
         except Exception as e:
             st.error(f"Error processing file: {e}")
 
@@ -131,5 +165,21 @@ if file_to_use:
             st.subheader("Lipid Annotations After Headgroup Mapping")
             st.write(f"Rows: {result_df.shape[0]}, Columns: {result_df.shape[1]}")
             st.dataframe(result_df)
+            
+            # Display pie chart for main_classes
+            if "main_class" in result_df.columns:
+                main_class_counts = result_df["main_class"].value_counts()
+                if len(main_class_counts) > 0:
+                    st.subheader("Main Class Distribution")
+                    fig = px.pie(values=main_class_counts.values, names=main_class_counts.index)
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            # Display pie chart for found lm_ids
+            if "lm_id" in result_df.columns:
+                lm_id_counts = result_df["lm_id"].notna().value_counts()
+                if len(lm_id_counts) > 0:
+                    st.subheader("LM ID Found Distribution")
+                    fig = px.pie(values=lm_id_counts.values, names=["LM ID Found" if x else "LM ID Not Found" for x in lm_id_counts.index])
+                    st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("Please upload a CSV file to begin.")
