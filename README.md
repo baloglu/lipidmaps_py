@@ -139,7 +139,7 @@ print(f"Samples: {dataset.list_samples()[:5]}")
 print(f"Lipids: {dataset.list_lipids()[:5]}")
 
 # Update LIPID MAPS ids by headgroups
-# fill_missing_lm_ids_from_headgroups(dataset) will assign headgroup LIPID MAPS ids to lipids and return the updated count.
+# fill_missing_lm_ids_from_headgroups(dataset) will assign headgroup LIPID MAPS ids to lipids as generic lm_id and return the updated count.
 updated_count = dataset.fill_missing_lm_ids_from_headgroups()
 
 # List lipid names where an lm id is assigned

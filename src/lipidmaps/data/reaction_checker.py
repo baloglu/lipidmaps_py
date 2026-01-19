@@ -38,6 +38,7 @@ class ReactionData(BaseModel):
     pathways: List[Dict[str, Any]] = Field(default_factory=list)
     reaction_name: Optional[str] = None
     reaction_id: Optional[int] = None
+    reaction_type: Optional[str] = None
     # Allow additional fields from API response
     model_config = {"extra": "allow"}
 
@@ -69,6 +70,7 @@ class ReactionData(BaseModel):
             proteins=self.proteins,
             curations=self.curations,
             pathways=self.pathways,
+            reaction_type=self.reaction_type,
         )
 
 
@@ -104,6 +106,7 @@ class ReactionChecker(BaseModel):
         search_type: str = "lipids",
         search_mode: str = "default",
         generic_reactions: bool = True,
+        reaction_type: Optional[str] = None,
     ) -> ReactionResponse:
         """Check reactions for given LIPID MAPS IDs.
 
@@ -170,6 +173,7 @@ class ReactionChecker(BaseModel):
                             for k, v in raw_reaction.items()
                             if k not in ["reactants", "products"]
                         },
+                        reaction_type=reaction_type,
                     )
 
                     # Filter to keep only lm_main components

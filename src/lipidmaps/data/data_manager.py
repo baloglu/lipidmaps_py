@@ -516,7 +516,7 @@ class DataManager(BaseModel):
         # Call the new method on LipidDataset
         return dataset.fill_missing_lm_ids_from_headgroups()
 
-    def fetch_reactions_for_lm_ids(self, dataset: Optional[Any] = None) -> List[Any]:
+    def fetch_reactions_for_lm_ids(self, dataset: Optional[Any] = None, reaction_type: Optional[str] = None) -> List[Any]:
         """
         Fetch Reaction objects for the given list of LM IDs using the ReactionChecker API.
         Args:
@@ -537,7 +537,7 @@ class DataManager(BaseModel):
 
         try:
             checker = ReactionChecker(base_url="https://dev.lipidmaps.org")
-            response = checker.check_reactions(lm_ids)
+            response = checker.check_reactions(lm_ids = lm_ids, generic_reactions=False, reaction_type="class-level" if reaction_type is None else reaction_type)
             logger.info(f"Retrieved {len(response.reactions)} reactions for {len(lm_ids)} LM IDs\n")
             # print(response.reactions)
             return response.reactions

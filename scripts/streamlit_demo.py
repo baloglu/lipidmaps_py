@@ -83,6 +83,7 @@ if file_to_use:
                 result_df = pd.DataFrame(result_rows)
                 st.subheader("Processed Lipid Annotations")
                 st.write(f"Rows: {result_df.shape[0]}, Columns: {result_df.shape[1]}")
+                st.write(f"Number of LM ID's: {result_df['lm_id'].notna().sum()}")
                 st.dataframe(result_df)
                 
                 # Display pie chart for main_classes

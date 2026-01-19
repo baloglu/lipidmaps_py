@@ -134,7 +134,8 @@ def main() -> None:
         )
 
     # Fetch reactions for all LM IDs in the dataset 
-    reactions = manager.fetch_reactions_for_lm_ids(dataset)
+    reactions = manager.fetch_reactions_for_lm_ids(dataset, reaction_type="class-level")
+    print(reactions[:2])  # Print first 2 reactions for brevity
     manager.annotate_lipids_with_reactions(reactions)
     logger.info(f"Lipids with reactions: {dataset.list_lipids_with_reactions()[:2]}")
     lipid_objects = dataset.find_lipids("TG 22:0_18:1_18:2")

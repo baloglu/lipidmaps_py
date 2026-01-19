@@ -112,7 +112,7 @@ class LipidDataset(LipidmapsBaseModel):
         from ..utils.headgroups import lipidmaps_headgroups
         updated = 0
         for lipid in self.lipids:
-            if not getattr(lipid, "lm_id", None):
+            if not getattr(lipid, "generic_lm_id", None):
                 match = re.match(r"^([A-Za-z0-9\-]+)", lipid.input_name)
                 if match:
                     headgroup = match.group(1)
@@ -123,7 +123,7 @@ class LipidDataset(LipidmapsBaseModel):
                         updated += 1
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"Updated {updated} lm_id fields using headgroup mapping (via LipidDataset)")
+        logger.info(f"Updated {updated} generic_lm_id fields using headgroup mapping (via LipidDataset)")
         return updated
 
     def get_value(self, sample: "SampleMetadata", lipid: "QuantifiedLipid") -> Optional[float]:
