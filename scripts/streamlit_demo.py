@@ -1,4 +1,3 @@
-
 import streamlit as st
 import os
 import sys
@@ -13,14 +12,14 @@ if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
 
-st.title("LIPID MAPS Quantitative Data Demo")
+st.header("LIPID MAPS Quantitative Data Demo")
 st.markdown("""
 Select a file from the test data directory or upload your own CSV file. Preview the file, then process it to see standardized lipid annotations.
 """)
 
 # List files in tests/data/inputs
 test_data_dir = os.path.abspath(os.path.join(dir_path, '../tests/data/inputs'))
-test_files = [f for f in os.listdir(test_data_dir) if f.endswith('.tsv')]
+test_files = [f for f in os.listdir(test_data_dir) if f.endswith('.tsv') or f.endswith('.csv')]
 
 st.subheader("Choose a test file or upload your own")
 selected_file = st.selectbox("Select a test CSV file", ["(none)"] + test_files)
@@ -40,10 +39,17 @@ if file_to_use:
     st.write("Preview of selected data:")
     try:
         _, ext = os.path.splitext(file_to_use)
+        # Try reading with skiprows=1 to handle metadata in line 2
         if ext.lower() in [".tsv", ".txt"]:
-            df = pd.read_csv(file_to_use, sep="\t")
+            try:
+                df = pd.read_csv(file_to_use, sep="\t")
+            except pd.errors.ParserError:
+                df = pd.read_csv(file_to_use, sep="\t", skiprows=[1])
         else:
-            df = pd.read_csv(file_to_use)
+            try:
+                df = pd.read_csv(file_to_use)
+            except pd.errors.ParserError:
+                df = pd.read_csv(file_to_use, skiprows=[1])
         st.write(f"Rows: {df.shape[0]}, Columns: {df.shape[1]}")
         st.dataframe(df)
     except Exception as e:
@@ -101,7 +107,9 @@ if file_to_use:
                     st.write(f"Passed: {mgr.validation_report.passed}")
                     st.write(f"Issues: {len(mgr.validation_report.issues)}")
                     if mgr.validation_report.issues:
-                        st.write(mgr.validation_report.issues)
+                        for issue in mgr.validation_report.issues:
+                            st.write(f"\t- {issue.message}")
+                        # st.write(mgr.validation_report.issues)
             else:
                 try:
                     from lipidmaps import process_csv

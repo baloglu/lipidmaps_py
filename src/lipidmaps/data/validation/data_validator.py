@@ -450,7 +450,7 @@ class DataValidator:
             )
 
         # Check for suspicious patterns
-        very_short = [name for name in names if len(name) < 3]
+        very_short = [name for name in names if len(name) < 2]
         if very_short:
             report.issues.append(
                 ValidationIssue(
