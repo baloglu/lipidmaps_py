@@ -1,7 +1,8 @@
 import unittest
 from lipidmaps.data.data_manager import DataManager
 from lipidmaps.data.models.sample import QuantifiedLipid, LipidDataset, SampleMetadata
-from lipidmaps.data.models.reaction import Reaction
+from lipidmaps.data.models.reaction import ReactionChecker, ReactionData, CompoundComponent
+# from lipidmaps.data.reaction_checker import ReactionChecker, ReactionData, CompoundComponent
 
 class TestAnnotateLipidsWithReactions(unittest.TestCase):
     def setUp(self):
@@ -15,39 +16,42 @@ class TestAnnotateLipidsWithReactions(unittest.TestCase):
         self.manager = DataManager()
         self.manager.dataset = self.dataset
 
-        # Create mock reactions
+        # Create mock CompoundComponent objects
+        reactant1 = CompoundComponent(compound_type="lm_main", compound_lm_id="LMGP01010001", compound_name="PC(16:0/18:1)")
+        product1 = CompoundComponent(compound_type="lm_main", compound_lm_id="LMGP02010001", compound_name="LPC(16:0)")
+        reactant2 = CompoundComponent(compound_type="lm_main",compound_lm_id="LMGP02010001", compound_name="LPC(16:0)")
+        product2 = CompoundComponent(compound_type="lm_main", compound_lm_id="LMGP01010001", compound_name="PC(16:0/18:1)")
+
+        # Create mock reactions using CompoundComponent
         self.reactions = [
-            Reaction(
-                reaction_id="R1",
+            ReactionData(
+                reaction_id=1,
                 reaction_name="PC to LPC",
-                reactants=[{"lm_id": "LMGP01010001", "input_name": "PC(16:0/18:1)"}],
-                products=[{"lm_id": "LMGP02010001", "input_name": "LPC(16:0)"}],
-                type="class-level",
-                pathway_id=None,
-                enzyme_id=None,
+                reactants=[reactant1],
+                products=[product1],
+                reaction_type="class-level"
             ),
-            Reaction(
-                reaction_id="R2",
+            ReactionData(
+                reaction_id=2,
                 reaction_name="LPC to PC",
-                reactants=[{"lm_id": "LMGP02010001", "input_name": "LPC(16:0)"}],
-                products=[{"lm_id": "LMGP01010001", "input_name": "PC(16:0/18:1)"}],
-                type="class-level",
-                pathway_id=None,
-                enzyme_id=None,
+                reactants=[reactant2],
+                products=[product2],
+                reaction_type="class-level"
             ),
         ]
 
     # ignore this test
-    @unittest.skip("Skipping test_annotate_lipids_with_reactions")
+    # @unittest.skip("Skipping test_annotate_lipids_with_reactions")
     def test_annotate_lipids_with_reactions(self):
-        self.manager.annotate_lipids_with_reactions(self.reactions)
+        self.manager.annotate_lipids_with_reactions(self.dataset, self.reactions)
         # Check that each lipid has reactions
-        for lipid in self.lipids:
+        for lipid in self.dataset.lipids:
             self.assertIsInstance(lipid.reactions, list)
             self.assertGreaterEqual(len(lipid.reactions), 1)
             # Check that the reaction_id is present in the reactions
-            reaction_ids = [r["reaction_id"] for r in lipid.reactions]
-            self.assertTrue(any(rid in ["R1", "R2"] for rid in reaction_ids))
+
+            reaction_ids = [int(r.reaction_id) for r in lipid.reactions]
+            self.assertTrue(any(rid in [1, 2] for rid in reaction_ids))
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,11 +3,11 @@ import requests
 from typing import List, Any, Optional, Dict
 
 from pydantic import BaseModel, Field
-
+from .models.base import LipidmapsBaseModel
 logger = logging.getLogger(__name__)
 
 
-class CompoundComponent(BaseModel):
+class CompoundComponent(LipidmapsBaseModel):
     """Represents a compound in a reaction (reactant or product)."""
 
     compound_type: Optional[str] = None
@@ -27,7 +27,7 @@ class CompoundComponent(BaseModel):
         )
 
 
-class ReactionData(BaseModel):
+class ReactionData(LipidmapsBaseModel):
     """Represents a single reaction with reactants and products."""
 
     reactants: List[CompoundComponent] = Field(default_factory=list)
@@ -74,14 +74,14 @@ class ReactionData(BaseModel):
         )
 
 
-class ReactionResponse(BaseModel):
+class ReactionResponse(LipidmapsBaseModel):
     """Response from reaction checking API."""
 
     reactions: List[ReactionData] = Field(default_factory=list)
     error: Optional[str] = None
 
 
-class ReactionChecker(BaseModel):
+class ReactionChecker(LipidmapsBaseModel):
     """Handle reaction checking via LIPID MAPS API with Pydantic validation."""
 
     base_url: str = Field(..., description="Base URL for the reaction API")

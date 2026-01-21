@@ -6,13 +6,13 @@ from pathlib import Path
 import pandas as pd
 # import networkx as nx
 from pydantic import BaseModel, Field, field_validator
-
+from .models.base import LipidmapsBaseModel
 # import the data models we will produce
 from .models.sample import SampleMetadata, SampleReactionInfo, QuantifiedLipid, LipidDataset
 from .models.refmet import RefMet
 from .models.lmsd import LMSD
-from .reaction_checker import ReactionChecker, ReactionData
-from .models.reaction import Reaction
+# from .reaction_checker import ReactionChecker, ReactionData
+from .models.reaction import ReactionChecker, ReactionData
 
 # import new ingestion and validation modules
 from .ingestion.csv_reader import CSVIngestion, CSVFormat
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 
-class DataManager(BaseModel):
+class DataManager(LipidmapsBaseModel):
 
     """DataManager: reads CSVs into LipidDataset objects.
     Usage:
@@ -298,7 +298,7 @@ class DataManager(BaseModel):
         self, rows: List[Dict], name_col: str, sample_ids: List[str], column_info: Optional[Dict[str, Any]] = None
     ) -> List[QuantifiedLipid]:
         """Extract QuantifiedLipid objects from CSV rows."""
-        logger.info(f"Extracting quantified lipids using name_col='{name_col}' and {sample_ids} samples")
+        logger.info(f"Extracting quantified lipids using name_col='{name_col}' and {len(sample_ids)} samples")
         quantified = []
         skipped_rows = 0
         empty_columns = []
@@ -546,20 +546,23 @@ class DataManager(BaseModel):
             return []
         
 
-    def annotate_lipids_with_reactions(self, reactions: list[ReactionData]) -> None:
+    def annotate_lipids_with_reactions(self, dataset: LipidDataset, reactions: Optional[list[ReactionData]] = None) -> None:
         """
         For each QuantifiedLipid in the dataset, find all reactions where the lipid's lm_id is a reactant or product,
         and update the QuantifiedLipid's 'reactions' field with a list of SampleReactionInfo summaries.
         """
-
-        if self.dataset is None or not hasattr(self.dataset, "lipids"):
+        if reactions is None:
+            logger.warning("No reactions provided.")
+            return
+        
+        if dataset is None or not hasattr(dataset, "lipids"):
             logger.warning("No dataset or lipids to annotate with reactions.")
             return
 
         # Build a mapping from lm_id to list of QuantifiedLipid objects
         from collections import defaultdict
         lm_id_to_lipids: dict[str, list[QuantifiedLipid]] = defaultdict(list)
-        for lipid in self.dataset.lipids:
+        for lipid in dataset.lipids:
             lm_id = getattr(lipid, "lm_id", None)
             if lm_id:
                 lm_id_to_lipids[lm_id].append(lipid)

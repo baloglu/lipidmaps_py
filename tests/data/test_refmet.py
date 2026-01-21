@@ -227,7 +227,7 @@ class TestRefMetValidation(unittest.TestCase):
 
     def test_refmet_positive_csv_matches_lm_id(self):
         """Test that sample_name in refmet_positive.csv returns the expected lm_id from RefMet."""
-        positive_csv = os.path.join(current_dir, "inputs", "refmet_positive.csv")
+        positive_csv = os.path.join(current_dir, "refmet_positive.csv")
         mismatches = []
         with open(positive_csv, newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)

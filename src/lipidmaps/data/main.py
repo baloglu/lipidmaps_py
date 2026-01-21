@@ -111,8 +111,8 @@ def main() -> None:
 
     # Dataset is now ready; perform reaction fetching/annotation and display selected lipids
     logger.info(f"Dataset ready: {len(dataset.samples)} samples, {len(dataset.lipids)} lipids")
-    logger.info(f"Sample column info: {dataset.samples}")
-    logger.info(f"Samples: {dataset.list_samples()[:5]}")
+    logger.info(f"Sample column info: {dataset.samples[:3]}")
+    logger.info(f"Samples: {dataset.list_samples()[:3]}")
     # logger.info(f"Lipids: {dataset.print_table(dataset)}")
 
     # Optionally fill missing LM IDs using LMSD and report what changed
@@ -135,24 +135,17 @@ def main() -> None:
 
     # Fetch reactions for all LM IDs in the dataset 
     reactions = manager.fetch_reactions_for_lm_ids(dataset, reaction_type="class-level")
-    print(reactions[:2])  # Print first 2 reactions for brevity
-    manager.annotate_lipids_with_reactions(reactions)
-    logger.info(f"Lipids with reactions: {dataset.list_lipids_with_reactions()[:2]}")
+    print(reactions[:1])  # Print first 1 reaction for brevity
+    manager.annotate_lipids_with_reactions(dataset, reactions)
+    logger.info(f"Lipids with reactions: {dataset.list_lipids_with_reactions()[:1]}")
     lipid_objects = dataset.find_lipids("TG 22:0_18:1_18:2")
-    for lipid in lipid_objects[:2]:  # Print info for first 2 matches
+    for lipid in lipid_objects[:1]:  # Print info for first 1 matches
         dataset.print_lipid_info(lipid)
-
-    name = "TG 22:0_18:1_18:2"
-    print(dataset.get_values(name))
     
     lipid_objects_with_reactions = dataset.get_lipids_with_reactions()
     logger.info(f"Total lipids with reactions: {len(lipid_objects_with_reactions)}")
-    for lipid in lipid_objects_with_reactions[:2]:  # Print info for first 2 matches
-        dataset.print_lipid_info(lipid)
-
-    for lipid in dataset.lipids[:2]:  # Print table for first 2 lipids
-        print(f"Lipid: {lipid.input_name}, Recognized: {lipid.recognized}, LM ID: {lipid.lm_id}, Reactions: {[r.reaction_name for r in (lipid.reactions or [])]}")
-
+    for lipid in lipid_objects_with_reactions:
+        print(f"Lipid: {lipid.input_name}, Reactions: {[r.reaction_name for r in (lipid.reactions or [])]}")
 
 if __name__ == "__main__":
     main()
