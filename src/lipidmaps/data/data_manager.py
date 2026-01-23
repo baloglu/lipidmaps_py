@@ -1,14 +1,14 @@
 import csv
 import logging
 import re
-from typing import List, Tuple, Dict, Any, Union, Optional
+from typing import List, Dict, Any, Union, Optional
 from pathlib import Path
 import pandas as pd
 # import networkx as nx
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 from .models.base import LipidmapsBaseModel
 # import the data models we will produce
-from .models.sample import SampleMetadata, SampleReactionInfo, QuantifiedLipid, LipidDataset
+from .models.sample import SampleMetadata, QuantifiedLipid, LipidDataset
 from .models.refmet import RefMet
 from .models.lmsd import LMSD
 # from .reaction_checker import ReactionChecker, ReactionData
@@ -201,9 +201,7 @@ class DataManager(LipidmapsBaseModel):
                 f"Available columns: {fieldnames}"
             )
 
-    def _resolve_sample_columns(
-        self, fieldnames: List[str], lipid_col: str
-    ) -> List[str]:
+    def _resolve_sample_columns(self, fieldnames: List[str], lipid_col: str) -> List[str]:
         """Resolve sample columns from user specification or default.
 
         Args:
@@ -294,9 +292,7 @@ class DataManager(LipidmapsBaseModel):
 
         return samples
 
-    def extract_quantified_lipids(
-        self, rows: List[Dict], name_col: str, sample_ids: List[str], column_info: Optional[Dict[str, Any]] = None
-    ) -> List[QuantifiedLipid]:
+    def extract_quantified_lipids(self, rows: List[Dict], name_col: str, sample_ids: List[str], column_info: Optional[Dict[str, Any]] = None) -> List[QuantifiedLipid]:
         """Extract QuantifiedLipid objects from CSV rows."""
         logger.info(f"Extracting quantified lipids using name_col='{name_col}' and {len(sample_ids)} samples")
         quantified = []
@@ -530,6 +526,9 @@ class DataManager(LipidmapsBaseModel):
             logger.warning("No dataset or lipids to fetch reactions for.")
             return []
         lm_ids = [lipid.lm_id for lipid in dataset.lipids if lipid.lm_id]
+        generic_lm_ids = [lipid.generic_lm_id for lipid in dataset.lipids if lipid.generic_lm_id]
+        # Get unique lm_ids from both lists
+        lm_ids = list(set(lm_ids).union(set(generic_lm_ids)))
 
         if not lm_ids:
             logger.info("No LM IDs provided for reaction fetching.")
@@ -548,118 +547,60 @@ class DataManager(LipidmapsBaseModel):
 
     def annotate_lipids_with_reactions(self, dataset: LipidDataset, reactions: Optional[list[ReactionData]] = None) -> None:
         """
-        For each QuantifiedLipid in the dataset, find all reactions where the lipid's lm_id is a reactant or product,
-        and update the QuantifiedLipid's 'reactions' field with a list of SampleReactionInfo summaries.
+        For each QuantifiedLipid in the dataset, find all reactions where the lipid's lm_id or generic_lm_id is a reactant or product (compound_lm_id),
+        and update the QuantifiedLipid's 'reactions' field with a list of unique ReactionData objects. Also, assign all unique reactions to dataset.reactions.
         """
         if reactions is None:
             logger.warning("No reactions provided.")
             return
-        
+
         if dataset is None or not hasattr(dataset, "lipids"):
             logger.warning("No dataset or lipids to annotate with reactions.")
             return
 
-        # Build a mapping from lm_id to list of QuantifiedLipid objects
-        from collections import defaultdict
-        lm_id_to_lipids: dict[str, list[QuantifiedLipid]] = defaultdict(list)
-        for lipid in dataset.lipids:
-            lm_id = getattr(lipid, "lm_id", None)
-            if lm_id:
-                lm_id_to_lipids[lm_id].append(lipid)
-
-        # Prepare a mapping from lm_id to list of SampleReactionInfo
-        lipid_reactions: dict[str, list[SampleReactionInfo]] = {lm_id: [] for lm_id in lm_id_to_lipids}
-
+        # Deduplicate reactions by reaction_id (or id)
+        reaction_dict = {}
         for reaction in reactions:
-            # Get reaction_id and reaction_name
             reaction_id = getattr(reaction, "reaction_id", None)
             if reaction_id is None:
                 reaction_id = getattr(reaction, "id", None)
             if reaction_id is not None:
                 reaction_id = str(reaction_id)
-            reaction_name = getattr(reaction, "reaction_name", None)
-            # Determine type (default to "species-level" if not present)
-            rtype = getattr(reaction, "type", None) or "species-level"
-            # Enzyme and pathway IDs
-            enzyme_ids = getattr(reaction, "enzyme_ids", None)
-            pathway_ids = getattr(reaction, "pathway_ids", None)
-            # Additional details
-            details = reaction.model_dump() if hasattr(reaction, "model_dump") else dict(reaction)
+                if reaction_id not in reaction_dict:
+                    reaction_dict[reaction_id] = reaction
+        # Assign all unique reactions to dataset.reactions
+        dataset.reactions = list(reaction_dict.values())
 
-            # Check reactants and products for each reaction
-            for role in ["reactants", "products"]:
-                items = getattr(reaction, role, [])
-                for item in items:
-                    lm_id = None
-                    if isinstance(item, dict):
-                        lm_id = item.get("compound_lm_id")
-                    elif hasattr(item, "compound_lm_id"):
-                        lm_id = getattr(item, "compound_lm_id", None)
-                    if lm_id and lm_id in lipid_reactions:
-                        info = SampleReactionInfo(
-                            reaction_id=reaction_id or "",
-                            reaction_name=reaction_name or "",
-                            type=rtype,
-                            enzyme_ids=enzyme_ids,
-                            pathway_ids=pathway_ids,
-                            role=role[:-1],  # "reactant" or "product"
-                            details=details,
-                        )
-                        lipid_reactions[lm_id].append(info)
-
-        # Assign the summary objects to each lipid (all with same lm_id)
-        for lm_id, lipids in lm_id_to_lipids.items():
-            rxns = lipid_reactions.get(lm_id, [])
-            for lipid in lipids:
-                lipid.reactions = rxns
-
-    # def build_reactions_tree_from_reactions(self, reactions: list) -> nx.DiGraph:
-    #     """
-    #     Build a directed graph (tree) of reactions from a list of ReactionData.
-    #     Each node is a compound (by LM ID or name), edges represent reactions.
-    #     """
-    #     G = nx.DiGraph()
-    #     for reaction in reactions:
-    #         # Check for reactants/products attributes
-    #         if hasattr(reaction, "reactants") and hasattr(reaction, "products"):
-    #             for reactant in reaction.reactants:
-    #                 for product in reaction.products:
-    #                     G.add_edge(
-    #                         reactant.display_name(),
-    #                         product.display_name(),
-    #                         reaction_id=getattr(reaction, "reaction_id", None),
-    #                         reaction_name=getattr(reaction, "reaction_name", None),
-    #                     )
-    #         else:
-    #             logger.warning(f"Reaction object missing reactants/products: {reaction}")
-    #     return G
-    
-    # def generate_pyplot_reactions_tree(self, tree: nx.DiGraph, output_path: Union[str, Path] = "reactions_tree.png") -> None:
-    #     """
-    #     Generate and save a matplotlib plot of the reactions tree.
-    #     Args:
-    #         tree: Directed graph of reactions.
-    #         output_path: Path to save the generated plot image.
-    #     """
-    #     import matplotlib.pyplot as plt
-
-    #     plt.figure(figsize=(26, 12))  # Increase figure size for clarity
-    #     pos = nx.spring_layout(tree, k=0.5, iterations=100)  # k controls spacing, increase for more space
-    #     nx.draw(
-    #         tree,
-    #         pos,
-    #         with_labels=True,
-    #         node_size=500,
-    #         node_color="lightblue",
-    #         font_size=8,
-    #         font_weight="bold",
-    #         edge_color="gray",
-    #         arrows=True,
-    #     )
-    #     plt.tight_layout()
-    #     plt.savefig(output_path)
-    #     plt.close()
-    #     logger.info(f"Reactions tree plot saved to {output_path}")
+        # For each lipid, collect matching unique reactions (by id)
+        for lipid in dataset.lipids:
+            lipid_ids = set()
+            if getattr(lipid, "lm_id", None):
+                lipid_ids.add(lipid.lm_id)
+            if getattr(lipid, "generic_lm_id", None):
+                lipid_ids.add(lipid.generic_lm_id)
+            matched_ids = set()
+            matched_reactions = []
+            for reaction in dataset.reactions:
+                for role in ["reactants", "products"]:
+                    items = getattr(reaction, role, [])
+                    for item in items:
+                        compound_lm_id = None
+                        if isinstance(item, dict):
+                            compound_lm_id = item.get("compound_lm_id")
+                        elif hasattr(item, "compound_lm_id"):
+                            compound_lm_id = getattr(item, "compound_lm_id", None)
+                        if compound_lm_id and compound_lm_id in lipid_ids:
+                            rid = getattr(reaction, "reaction_id", None) or getattr(reaction, "id", None)
+                            if rid is not None:
+                                rid = str(rid)
+                                if rid not in matched_ids:
+                                    matched_reactions.append(reaction)
+                                    matched_ids.add(rid)
+                            break  # Only need to add once per reaction
+                    else:
+                        continue
+                    break
+            lipid.reactions = matched_reactions if matched_reactions else None
 
     def print_report(self) -> None:
         """Print the most recent validation report if available."""

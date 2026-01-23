@@ -3,7 +3,8 @@ import logging
 from typing import Any, List, Dict, Optional
 import numpy as np
 from .base import LipidmapsBaseModel
-
+from pydantic import Field
+from .reaction import ReactionData, CompoundComponent
 logger = logging.getLogger(__name__)
 
 
@@ -19,15 +20,15 @@ class SampleMetadata(LipidmapsBaseModel):
         """
         return lipid.values.get(self.sample_id)
 
-class SampleReactionInfo(LipidmapsBaseModel):
+class LipidReactionInfo(LipidmapsBaseModel):
     reaction_id: str
     reaction_name: str
-    type: str  # "species-level" or "class-level"
+    reaction_type: str  # "species-level" or "class-level"
     enzyme_ids: Optional[List[str]] = None # e.g., EC numbers or UniProt IDs
     pathway_ids: Optional[List[str]] = None # Supplied by LIPID MAPS API
     role: Optional[str] = None  # e.g., "reactant" or "product"
     weight: Optional[float] = None  # e.g., for species-level reactions
-    details: Optional[Dict[str, Any]] = None  # Additional reaction details
+    # details: Optional[Dict[str, Any]] = None  # Additional reaction details
 
 class QuantifiedLipid(LipidmapsBaseModel):
     input_name: str
@@ -50,7 +51,7 @@ class QuantifiedLipid(LipidmapsBaseModel):
     refmet_id: Optional[str] = None
     formula: Optional[str] = None
     mass: Optional[float] = None
-    reactions: Optional[List[SampleReactionInfo]] = None
+    reactions: Optional[List[ReactionData]] = None # List of associated reactions - replacing LipidReactionInfo with ReactionData
     weight: Optional[float] = None  # For species or class-level reaction
 
     def get_value_for_sample(self, sample: "SampleMetadata") -> Optional[float]:
@@ -73,18 +74,21 @@ class QuantifiedLipid(LipidmapsBaseModel):
             k: (v - mean) / std if std != 0 else 0.0 for k, v in self.values.items()
         }
 
-
 class LipidDataset(LipidmapsBaseModel):
 
     samples: List[SampleMetadata]
     lipids: List[QuantifiedLipid]
     column_info: Optional[Dict[str, Any]] = None  # Metadata about CSV columns
+    reactions: List[ReactionData] = Field(default_factory=list)  # All reactions in dataset
 
     def list_samples(self) -> List[str]:
         return [s.sample_id for s in self.samples]
 
     def list_lipids(self) -> List[str]:
         return [l.input_name for l in self.lipids]
+    
+    def list_reactions(self) -> Optional[List[str]]:
+        return [f"{r.reaction_name} {r.reaction_id}" for r in (self.reactions)]
     
     def list_lipids_with_lmid(self) -> List[str]:
         return [l.input_name for l in self.lipids if l.lm_id is not None]
@@ -94,7 +98,22 @@ class LipidDataset(LipidmapsBaseModel):
     
     def get_lipids_with_reactions(self) -> List[QuantifiedLipid]:
         return [l for l in self.lipids if l.reactions is not None and len(l.reactions) > 0]
-    
+
+    def get_lipids_for_component(self, component: CompoundComponent) -> List[QuantifiedLipid]:
+        """
+        Return all QuantifiedLipid objects where the component matches input_name, standardized_name, or lm_id (case-insensitive).
+        """
+        comp_names = set()
+
+        if hasattr(component, "compound_lm_id") and component.compound_lm_id:
+            comp_names.add(component.compound_lm_id.lower())
+
+        return [
+            l for l in self.lipids
+            if (l.lm_id and l.lm_id.lower() in comp_names)
+            or (l.generic_lm_id and l.generic_lm_id.lower() in comp_names)
+        ]
+
     def find_lipids(self, query: str) -> List[QuantifiedLipid]:
         q = query.lower()
         return [

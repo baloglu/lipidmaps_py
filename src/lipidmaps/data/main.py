@@ -144,8 +144,14 @@ def main() -> None:
     
     lipid_objects_with_reactions = dataset.get_lipids_with_reactions()
     logger.info(f"Total lipids with reactions: {len(lipid_objects_with_reactions)}")
-    for lipid in lipid_objects_with_reactions:
-        print(f"Lipid: {lipid.input_name}, Reactions: {[r.reaction_name for r in (lipid.reactions or [])]}")
+    logger.info(f"Total reaction object in dataset: {len(dataset.reactions)}")
+    for reaction_name in dataset.list_reactions():  # Print first 1 reaction name
+        logger.info(f"{reaction_name}")
+    for reaction in dataset.reactions[:3]:  # Print first 1 lipid with reactions
+        print(f"Reaction name: {reaction.reaction_name} {reaction.reaction_id}\n"
+              f"Reactant names: {[(r.compound_name, r.compound_lm_id) for r in (reaction.reactants or [])]}\n"
+
+              f"Product names: {[(p.compound_name, p.compound_lm_id) for p in (reaction.products or [])]}")
 
 if __name__ == "__main__":
     main()
