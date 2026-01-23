@@ -11,25 +11,36 @@ src_path = os.path.abspath(os.path.join(dir_path, '../src'))
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
+# Streamlit page configuration
 
-st.header("LIPID MAPS Quantitative Data Demo")
+st.set_page_config(
+    page_title="LIPID MAPS Quantitative Data Demo",
+    page_icon="LM",
+    layout="wide",
+    initial_sidebar_state="expanded")
+
+# Page title and description
+st.header("Quantitative Data Demo")
 st.markdown("""
-Select a file from the test data directory or upload your own CSV file. Preview the file, then process it to see standardized lipid annotations.
+Use the sidebar to select a file from the test data directory or upload your own CSV file. Preview the file, then process it to see standardized lipid annotations.
 """)
 
-st.sidebar.title("Navigation")
+# Sidebar for file selection and parameters
+st.sidebar.title("LIPID MAPS Data Processing")
+file_selection = st.sidebar.container()
+parameters = st.sidebar.container()
 
-st.sidebar.markdown(f"****")
 # List files in tests/data/inputs   
-test_data_dir = os.path.abspath(os.path.join(dir_path, '../tests/data/inputs'))
+test_data_dir = os.path.abspath(os.path.join(dir_path, '../tests/data/inputs/demo'))
 test_files = [f for f in os.listdir(test_data_dir) if f.endswith('.tsv') or f.endswith('.csv')]
 
 # if "file_to_use" not in st.session_state:
 
-st.sidebar.subheader("Choose a test file or upload your own")
-selected_file = st.sidebar.selectbox("Select a test CSV file", ["(none)"] + test_files)
-uploaded_file = st.sidebar.file_uploader("Or upload a CSV file", type=["csv"])
-st.sidebar.markdown(f"****")
+file_selection.subheader("Choose a test file or upload your own")
+selected_file = file_selection.selectbox("Select a test CSV file", ["(none)"] + test_files)
+uploaded_file = file_selection.file_uploader("Or upload a CSV file", type=["csv"])
+file_selection.markdown(f"****")
+
 file_to_use = None
 if uploaded_file is not None:
     import tempfile
@@ -42,9 +53,14 @@ st.session_state["file_to_use"] = file_to_use
 
 if st.session_state["file_to_use"]:
 
-    col1, col2 = st.sidebar.columns(2)
-    process_with_ver = col1.button("Process with verification")
-    process_without_ver = col2.button("Process without verification")
+    verification = parameters.selectbox("Data Verification", ["With Verification", "Without Verification"])
+    if verification == "With Verification":
+        validate_data = True
+    else:
+        validate_data = False
+
+    process = parameters.button("Standardize with Refmet")
+    parameters.markdown(f"****")
 
     if "processed" not in st.session_state:
         st.session_state["processed"] = False
@@ -65,15 +81,21 @@ if st.session_state["file_to_use"]:
                 df = pd.read_csv(file_to_use, skiprows=[1])
         st.write(f"Rows: {df.shape[0]}, Columns: {df.shape[1]}")
         st.dataframe(df)
+
+        # # Heatmap visualization (optional)
+        # fig = px.imshow(df, aspect="auto", color_continuous_scale="Viridis")
+        # st.plotly_chart(fig, use_container_width=True)
     except Exception as e:
         st.error(f"Error reading file: {e}")
+
+
 
     if "dataset" not in st.session_state:
         st.session_state["dataset"] = None
 
-    if process_with_ver or process_without_ver:
+    if process:
         try:
-            if process_with_ver:
+            if validate_data:
                 mgr = DataManager(validate_data=True)
                 dataset = mgr.process_csv(file_to_use)
                 st.session_state["dataset"] = dataset
@@ -114,13 +136,19 @@ if st.session_state["file_to_use"]:
                 
                 # Validation info
                 if mgr.validation_report:
+                    st.session_state["validation_issues"] = mgr.validation_report.issues
                     st.subheader("Validation Report (Processed)")
                     st.write(f"Passed: {mgr.validation_report.passed}")
                     st.write(f"Issues: {len(mgr.validation_report.issues)}")
-                    if mgr.validation_report.issues:
-                        for issue in mgr.validation_report.issues[:10]:
-                            st.write(f"\t- {issue.message}")
-                        # st.write(mgr.validation_report.issues)
+                    issues =  st.session_state.get("validation_issues", [])
+                    show_all = st.checkbox("Show all issues", key="show_all_issues")
+                    max_issues = len(issues) if show_all else 5
+                    for issue in issues[:max_issues]:
+                        st.write(f"- {issue.message}")
+                    if not show_all and len(issues) > 5:
+                        st.write(f"...and {len(issues) - 5} more. Check 'Show all issues' to see all.")
+                else:
+                    st.session_state["validation_issues"] = []
 
             else:
                 try:
@@ -171,7 +199,10 @@ if st.session_state["file_to_use"]:
 
 
     if st.session_state.get("dataset") is not None and st.session_state.get("processed"):
-        if st.sidebar.button("Use headgroups for Generic LMIDs"):
+        generic_lm_id_button = st.sidebar.button("Assign Generic LMIDs")
+        st.sidebar.caption("Using headgroup mapping to assign Generic LM IDs where missing.")
+        if generic_lm_id_button:
+            
             updated = st.session_state["dataset"].fill_missing_lm_ids_from_headgroups()
             st.success(f"Updated {updated} lipids using headgroup mapping.")
 
