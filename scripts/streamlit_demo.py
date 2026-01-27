@@ -179,18 +179,108 @@ with tabs[tab_index["processed"]]:
     else:
         st.subheader("Processed Lipid Annotations")
 
-        df_proc = pd.DataFrame([{
-            "input_name": getattr(lipid, "input_name", None),
-            "standardized_name": getattr(lipid, "standardized_name", None),
-            "lm_id": getattr(lipid, "lm_id", None),
-            "generic_lm_id": getattr(lipid, "generic_lm_id", None),
-            "refmet": getattr(lipid, "refmet_id", None),
-            "main_class": getattr(lipid, "main_class", None),
-            "sub_class": getattr(lipid, "sub_class", None),
-        } for lipid in dataset.lipids])
+        # Build DataFrame and keep mapping to lipid objects
+        lipid_rows = []
+        for idx, lipid in enumerate(dataset.lipids):
+            lipid_rows.append({
+                "index": idx,
+                "input_name": getattr(lipid, "input_name", None),
+                "standardized_name": getattr(lipid, "standardized_name", None),
+                "lm_id": getattr(lipid, "lm_id", None),
+                "generic_lm_id": getattr(lipid, "generic_lm_id", None),
+                "refmet": getattr(lipid, "refmet_id", None),
+                "main_class": getattr(lipid, "main_class", None),
+                "sub_class": getattr(lipid, "sub_class", None),
+            })
+        df_proc = pd.DataFrame(lipid_rows)
 
         st.write(f"Rows: {df_proc.shape[0]}, Columns: {df_proc.shape[1]}")
+        # Show the table (read-only) and provide a selection control underneath.
         st.dataframe(df_proc)
+
+        # Simple per-sample listing using dataset helper
+        st.subheader("Per-sample lipid values")
+        sample_opts = [s.sample_id for s in dataset.samples] if getattr(dataset, 'samples', None) else []
+        if sample_opts:
+            sample_sel = st.selectbox("Select sample to list lipid values", sample_opts, key="sample_list_select")
+            data = dataset.get_lipid_values_for_samples(sample_sel)
+            # display array of objects as bar chart and table
+            try:
+                df_vals = pd.DataFrame([d for d in data if d.get("value") is not None])
+            except Exception:
+                df_vals = pd.DataFrame(data)
+
+            if df_vals.empty:
+                st.info(f"No lipid values for sample {sample_sel}.")
+            else:
+                fig = px.bar(df_vals, x="input_name", y="value", title=f"Lipid values for sample {sample_sel}")
+                fig.update_layout(xaxis_title="Lipid", yaxis_title="Value", xaxis_tickangle=-45)
+                st.plotly_chart(fig, use_container_width=True)
+                st.dataframe(df_vals)
+        else:
+            st.info("No samples available in dataset.")
+
+        # Mean value per main class for selected sample
+        if sample_opts:
+            st.subheader("Mean value per Main Class")
+            try:
+                main_classes = df_proc["main_class"].dropna().unique().tolist()
+            except Exception:
+                main_classes = []
+
+            class_rows = []
+            for mc in main_classes:
+                class_lipids = [l for l in dataset.lipids if getattr(l, "main_class", None) == mc]
+                if not class_lipids:
+                    continue
+                mean_val = dataset.mean_value_for_lipids(sample_sel, class_lipids, skip_missing=True)
+                class_rows.append({"main_class": mc, "mean_value": mean_val})
+
+            if class_rows:
+                df_class = pd.DataFrame(class_rows).sort_values(by="mean_value", ascending=False)
+                fig = px.bar(df_class, x="main_class", y="mean_value", title=f"Mean per main class for sample {sample_sel}")
+                fig.update_layout(xaxis_title="Main class", yaxis_title="Mean value", xaxis_tickangle=-45)
+                st.plotly_chart(fig, use_container_width=True)
+                st.dataframe(df_class)
+            else:
+                st.info("No main class information available to compute means.")
+
+        # Provide a stable selection UI (selectbox) for choosing a lipid to view sample values bar chart
+        options = [f"{i}: {getattr(l, 'input_name', '')}" for i, l in enumerate(dataset.lipids)]
+        if options:
+            sel = st.selectbox("Select lipid to view sample values bar chart", options, key="lipid_select")
+            try:
+                selected_idx = int(sel.split(":", 1)[0])
+            except Exception:
+                selected_idx = None
+            if selected_idx is not None:
+                st.session_state["selected_lipid_idx"] = selected_idx
+                lipid = dataset.lipids[selected_idx]
+                st.subheader(f"Sample values bar chart for: {lipid.input_name}")
+
+                # Build bar chart of quantitation values
+                values = getattr(lipid, "values", {}) or {}
+                if values:
+                    try:
+                        sample_order = [s.sample_id for s in dataset.samples]
+                    except Exception:
+                        sample_order = list(values.keys())
+
+                    rows = []
+                    for sid in sample_order:
+                        if sid in values:
+                            rows.append({"sample": sid, "value": values[sid]})
+                    if not rows:
+                        rows = [{"sample": k, "value": v} for k, v in values.items()]
+
+                    df_vals = pd.DataFrame(rows)
+                    fig = px.bar(df_vals, x="sample", y="value", title=f"Quantitation for {lipid.input_name}")
+                    fig.update_layout(xaxis_title="Sample", yaxis_title="Value")
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No quantitation values available for this lipid.")
+        else:
+            st.info("No lipids available to select.")
 
         # ---- Pie Charts ----
 
@@ -243,44 +333,49 @@ if generic_lm_id_button and st.session_state["dataset"] is not None:
 
 
 # --------------------------------------------------------------
-# REACTION FETCHING TOOL
+# REACTIONS TAB
 # --------------------------------------------------------------
 if fetch_reactions_button and st.session_state["dataset"] is not None:
     ds = st.session_state["dataset"]
     mgr = DataManager()
 
-    reactions = mgr.fetch_reactions_for_lm_ids(ds, reaction_type="species-level")
-    st.session_state["reactions"] = reactions
+    try:
+        reactions = mgr.fetch_reactions_for_lm_ids(ds, reaction_type="species-level")
+        st.session_state["reactions"] = reactions
 
-    # annotate dataset with reactions (optional)
-    mgr.annotate_lipids_with_reactions(ds, reactions)
+        # annotate dataset with reactions (optional)
+        mgr.annotate_lipids_with_reactions(ds, reactions)
 
-    st.success(f"Fetched {len(reactions)} reactions.")
-    st.rerun()  # IMPORTANT: stable, never clears processed page
+        st.success(f"Fetched {len(reactions)} reactions.")
+        st.rerun()  # IMPORTANT: stable, never clears processed page
+    except Exception as e:
+        st.error(f"Error fetching reactions: {e}")
 
-
-# --------------------------------------------------------------
-# REACTIONS TAB
-# --------------------------------------------------------------
 with tabs[tab_index["reactions"]]:
     st.subheader("Reactions for LM IDs")
-
     if not st.session_state["reactions"]:
         st.info("No reactions fetched yet. Use Tools → Fetch reactions by LM ID.")
     else:
-        # Show reactions table
+        # Build reactions table, handling pathway dicts or objects
         rxn_df = pd.DataFrame([{
             "reaction_id": r.reaction_id,
             "reaction_name": r.reaction_name,
-            "reactants": ", ".join(c.compound_lm_id for c in r.reactants),
-            "products": ", ".join(c.compound_lm_id for c in r.products),
-            "reaction_type": r.reaction_type,
+            "reactants": ", ".join(getattr(c, "compound_lm_id", "") for c in getattr(r, "reactants", [])),
+            "products": ", ".join(getattr(c, "compound_lm_id", "") for c in getattr(r, "products", [])),
+            "pathways": ", ".join(
+                (p.get("name") if isinstance(p, dict) else getattr(p, "pathway_name", ""))
+                for p in getattr(r, "pathways", [])
+            ),
+            "ec_number": ", ".join(
+                (p.get("ec_number") if isinstance(p, dict) else getattr(p, "ec_number", ""))
+                for p in getattr(r, "proteins", [])
+            ),
         } for r in st.session_state["reactions"]])
 
         st.dataframe(rxn_df)
 
-        # Show lipids with reactions
-        dataset = st.session_state["dataset"]
+        # Show lipids annotated with reactions
+        dataset = st.session_state.get("dataset")
         if dataset:
             lipids_with_rxn = dataset.get_lipids_with_reactions()
             if lipids_with_rxn:
@@ -289,7 +384,7 @@ with tabs[tab_index["reactions"]]:
                 lip_df = pd.DataFrame([{
                     "input_name": getattr(lip, "input_name", None),
                     "lm_id": getattr(lip, "lm_id", None),
-                    "reactions": ", ".join(r.reaction_name for r in lip.reactions),
+                    "reactions": ", ".join(getattr(r, "reaction_name", "") for r in (lip.reactions or [])),
                 } for lip in lipids_with_rxn])
 
                 st.dataframe(lip_df)
