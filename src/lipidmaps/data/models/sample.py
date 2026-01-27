@@ -33,17 +33,6 @@ class SampleMetadata(LipidmapsBaseModel):
             raise ValueError("dataset is required to resolve lipid names; call dataset.mean_value_for_lipids(...) instead")
         return dataset.mean_value_for_lipids(self, lipids, skip_missing=skip_missing)
 
-
-class LipidReactionInfo(LipidmapsBaseModel):
-    reaction_id: str
-    reaction_name: str
-    reaction_type: str  # "species-level" or "class-level"
-    enzyme_ids: Optional[List[str]] = None # e.g., EC numbers or UniProt IDs
-    pathway_ids: Optional[List[str]] = None # Supplied by LIPID MAPS API
-    role: Optional[str] = None  # e.g., "reactant" or "product"
-    weight: Optional[float] = None  # e.g., for species-level reactions
-    # details: Optional[Dict[str, Any]] = None  # Additional reaction details
-
 class QuantifiedLipid(LipidmapsBaseModel):
     input_name: str
     values: Dict[str, float]  # sample_id -> value
@@ -65,7 +54,7 @@ class QuantifiedLipid(LipidmapsBaseModel):
     refmet_id: Optional[str] = None
     formula: Optional[str] = None
     mass: Optional[float] = None
-    reactions: Optional[List[ReactionData]] = None # List of associated reactions - replacing LipidReactionInfo with ReactionData
+    reactions: Optional[List[ReactionData]] = None # List of associated reactions
     weight: Optional[float] = None  # For species or class-level reaction
 
     def get_value_for_sample(self, sample: "SampleMetadata") -> Optional[float]:
