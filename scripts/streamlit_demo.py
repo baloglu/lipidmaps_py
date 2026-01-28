@@ -30,6 +30,8 @@ defaults = {
     "dataset": None,
     "processed": False,
     "validation_issues": [],
+    "generic_lm_id_assigned": False,
+    "reactions_fetched": False,
     "validation_passed": None,
     "has_validation_report": False,
     "show_all_issues": False,
@@ -41,13 +43,13 @@ for k, v in defaults.items():
     st.session_state.setdefault(k, v)
 
 # ---------------------- SIDEBAR ----------------------
-process = False
+processed = False
 generic_lm_id_button = False
 fetch_reactions_button = False
 validate_data = False
 
 with st.sidebar:
-    st.title("LIPID MAPS Processing")
+    st.title("LIPID MAPS API")
 
     # ---- FILE selection ----
     with st.expander("File", expanded=True):
@@ -84,7 +86,9 @@ with st.sidebar:
         )
         validate_data = (verification == "With Verification") if file_chosen else False
 
-        process = st.button("Standardize with Refmet", disabled=not file_chosen)
+        processed = st.button("Standardize with Refmet", disabled=not file_chosen)
+        if st.session_state["processed"] and file_chosen:
+            st.badge("Success! Please use the Processed tab to view results", icon=":material/check:", color="green")
 
     # ---- TOOLS ----
     with st.expander("Tools", expanded=True):
@@ -92,9 +96,13 @@ with st.sidebar:
 
         generic_lm_id_button = st.button("Assign Generic LMIDs",
                                          disabled=not processed_flag)
+        if st.session_state["generic_lm_id_assigned"]:
+            st.badge("Generic LMIDs assigned", icon=":material/check:", color="green")
 
         fetch_reactions_button = st.button("Fetch reactions by LM ID",
                                           disabled=not processed_flag)
+        if st.session_state["reactions_fetched"]:
+            st.badge("Reactions fetched", icon=":material/check:", color="green")
 
     # ---- VIEW ----
     with st.expander("View", expanded=True):
@@ -106,6 +114,7 @@ with st.sidebar:
 # ---------------------- TABS ----------------------
 tab_labels = ["Preview", "Processed", "Reactions", "Validation"]
 tabs = st.tabs(tab_labels)
+
 tab_index = {name.lower(): i for i, name in enumerate(tab_labels)}
 
 # --------------------------------------------------------------
@@ -139,7 +148,7 @@ with tabs[tab_index["preview"]]:
 # --------------------------------------------------------------
 # PROCESSING ACTION
 # --------------------------------------------------------------
-if process and st.session_state["file_to_use"]:
+if processed and st.session_state["file_to_use"]:
     try:
         fp = st.session_state["file_to_use"]
 
@@ -325,6 +334,7 @@ with tabs[tab_index["processed"]]:
 if generic_lm_id_button and st.session_state["dataset"] is not None:
     ds = st.session_state["dataset"]
     updated = ds.fill_missing_lm_ids_from_headgroups()
+    st.session_state["generic_lm_id_assigned"] = True
     st.success(f"Updated {updated} lipids using headgroup mapping.")
     st.rerun()  # refresh processed page
 
@@ -343,6 +353,7 @@ if fetch_reactions_button and st.session_state["dataset"] is not None:
         mgr.annotate_lipids_with_reactions(ds, reactions)
 
         st.success(f"Fetched {len(reactions)} reactions.")
+        st.session_state["reactions_fetched"] = True
         st.rerun()  # IMPORTANT: stable, never clears processed page
     except Exception as e:
         st.error(f"Error fetching reactions: {e}")
