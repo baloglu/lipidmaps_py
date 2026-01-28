@@ -1,14 +1,3 @@
-# from typing import List, Optional, Union, Any, Dict
-# import logging
-
-# from .base import LipidmapsBaseModel
-# from pydantic import Field, field_validator
-
-
-# logger = logging.getLogger(__name__)
-
-# """ IN TEMPLATE PHASE"""
-
 
 import logging
 import requests
@@ -59,14 +48,17 @@ class ReactionData(LipidmapsBaseModel):
         all_components = self.reactants + self.products
         return any(c.compound_type == "lm_main" for c in all_components)
 
-    def filter_lm_main(self) -> "ReactionData":
+    def filter_reaction(self, only_lipid_components: bool = True) -> "ReactionData":
         """Return a new ReactionData with only lm_main components."""
-        filtered_reactants = [c for c in self.reactants if c.compound_type == "lm_main"]
-        filtered_products = [c for c in self.products if c.compound_type == "lm_main"]
-
-        # Generate reaction name from filtered components
-        reactant_names = "; ".join(c.display_name() for c in filtered_reactants)
-        product_names = "; ".join(c.display_name() for c in filtered_products)
+        if only_lipid_components:
+            filtered_reactants = [c for c in self.reactants if c.compound_type == "lm_main"]
+            filtered_products = [c for c in self.products if c.compound_type == "lm_main"]
+        else:
+            filtered_reactants = self.reactants
+            filtered_products = self.products
+        # Generate reaction name from filtered components by using lm_main names
+        reactant_names = "; ".join(c.display_name() for c in filtered_reactants if c.compound_type == "lm_main")
+        product_names = "; ".join(c.display_name() for c in filtered_products if c.compound_type == "lm_main")
         reaction_name = (
             f"{reactant_names} -> {product_names}"
             if (reactant_names or product_names)
@@ -118,6 +110,7 @@ class ReactionChecker(LipidmapsBaseModel):
         search_type: str = "lipids",
         search_mode: str = "default",
         generic_reactions: bool = True,
+        only_lipid_components: bool = True,
         reaction_type: Optional[str] = None,
     ) -> ReactionResponse:
         """Check reactions for given LIPID MAPS IDs.
@@ -129,18 +122,20 @@ class ReactionChecker(LipidmapsBaseModel):
             search_type: Type of search (e.g. "lipids")
             search_mode: Mode string for the API (default: "default")
             generic_reactions: Whether to request generic reactions
-
+            only_lipid_components: Whether to include only lipid components in the response
         Returns:
-            ReactionResponse with filtered reactions containing only lm_main components
+            ReactionResponse with filtered reactions containing only lm_main components if specified
         """
-        # Build payload matching the API used in the HTTP example (keys like "lmsd_ids")
-        payload = {
+        # Build payload matching the API used in the HTTP example (keys like "lmsd_ids").
+        # Include `search_type` only when requesting lipid-only components (backwards-compatible).
+        payload: Dict[str, Any] = {
             "search_mode": search_mode,
-            "search_type": search_type,
             "generic_reactions": generic_reactions,
             "lmsd_ids": lm_ids,
             "search_source": "lipidmaps_py",
         }
+        if only_lipid_components:
+            payload["search_type"] = search_type
         logger.debug("Reaction check payload: %s", payload)
         try:
             logger.info(f"Sending reaction check request for {len(lm_ids)} LM IDs to {self.api_url}")
@@ -189,7 +184,7 @@ class ReactionChecker(LipidmapsBaseModel):
                     )
 
                     # Filter to keep only lm_main components
-                    filtered_reaction = reaction.filter_lm_main()
+                    filtered_reaction = reaction.filter_reaction(only_lipid_components=only_lipid_components)
 
                     # Only include if it has lm_main components
                     if filtered_reaction.reactants or filtered_reaction.products:

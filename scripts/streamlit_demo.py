@@ -115,7 +115,7 @@ with tabs[tab_index["preview"]]:
     if not st.session_state["file_to_use"]:
         st.info("Please select or upload a file to preview.")
     else:
-        st.subheader("Preview of Selected Data")
+        st.subheader("Preview of Selected File")
 
         fp = st.session_state["file_to_use"]
         try:
@@ -216,7 +216,6 @@ with tabs[tab_index["processed"]]:
                 fig = px.bar(df_vals, x="input_name", y="value", title=f"Lipid values for sample {sample_sel}")
                 fig.update_layout(xaxis_title="Lipid", yaxis_title="Value", xaxis_tickangle=-45)
                 st.plotly_chart(fig, use_container_width=True, key="sample_lipid_bar_chart")
-                st.dataframe(df_vals)
         else:
             st.info("No samples available in dataset.")
 
@@ -241,7 +240,6 @@ with tabs[tab_index["processed"]]:
                 fig = px.bar(df_class, x="main_class", y="mean_value", title=f"Mean per main class for sample {sample_sel}")
                 fig.update_layout(xaxis_title="Main class", yaxis_title="Mean value", xaxis_tickangle=-45)
                 st.plotly_chart(fig, use_container_width=True, key="mean_value_per_main_class")
-                st.dataframe(df_class)
             else:
                 st.info("No main class information available to compute means.")
 
@@ -339,9 +337,8 @@ if fetch_reactions_button and st.session_state["dataset"] is not None:
     mgr = DataManager()
 
     try:
-        reactions = mgr.fetch_reactions_for_lm_ids(ds, reaction_type="species-level")
+        reactions = mgr.fetch_reactions_for_lm_ids(ds, reaction_type="species-level", only_lipid_components=False)
         st.session_state["reactions"] = reactions
-
         # annotate dataset with reactions (optional)
         mgr.annotate_lipids_with_reactions(ds, reactions)
 
@@ -356,28 +353,114 @@ with tabs[tab_index["reactions"]]:
         st.info("No reactions fetched yet. Use Tools → Fetch reactions by LM ID.")
     else:
         # Build reactions table, handling pathway dicts or objects
-        rxn_df = pd.DataFrame([{
-            "reaction_id": r.reaction_id,
-            "reaction_name": r.reaction_name,
-            "reactants": ", ".join(getattr(c, "compound_lm_id", "") for c in getattr(r, "reactants", [])),
-            "products": ", ".join(getattr(c, "compound_lm_id", "") for c in getattr(r, "products", [])),
-            "pathways": ", ".join(
-                (p.get("name") if isinstance(p, dict) else getattr(p, "pathway_name", ""))
-                for p in getattr(r, "pathways", [])
-            ),
-            "ec_number": ", ".join(
-                (p.get("ec_number") if isinstance(p, dict) else getattr(p, "ec_number", ""))
-                for p in getattr(r, "proteins", [])
-            ),
-            "genes": ", ".join(
-                (p.get("gene_name") if isinstance(p, dict) else getattr(p, "ec_number", ""))
-                for p in getattr(r, "genes", [])
-            )
-        } for r in st.session_state["reactions"]])
+        rxn_rows = []
+        for r in st.session_state.get("reactions", []):
+            reactants_str = ", ".join([
+                s for s in (getattr(c, "compound_lm_id", None) for c in getattr(r, "reactants", [])) if s
+            ])
+            products_str = ", ".join([
+                s for s in (getattr(c, "compound_lm_id", None) for c in getattr(r, "products", [])) if s
+            ])
+            pathways_str = ", ".join([
+                s for s in ((p.get("name") if isinstance(p, dict) else getattr(p, "pathway_name", None)) for p in getattr(r, "pathways", [])) if s
+            ])
+            ec_str = ", ".join([
+                s for s in ((p.get("ec_number") if isinstance(p, dict) else getattr(p, "ec_number", None)) for p in getattr(r, "proteins", [])) if s
+            ])
+            genes_str = ", ".join([
+                s for s in ((p.get("gene_name") if isinstance(p, dict) else getattr(p, "gene_name", None)) for p in getattr(r, "genes", [])) if s
+            ])
+
+            rxn_rows.append({
+                "reaction_id": getattr(r, "reaction_id", None),
+                "reaction_name": getattr(r, "reaction_name", None),
+                "reactants": reactants_str,
+                "products": products_str,
+                "pathways": pathways_str,
+                "ec_number": ec_str,
+                "genes": genes_str,
+            })
+
+        rxn_df = pd.DataFrame(rxn_rows)
 
         st.dataframe(rxn_df)
+    
+        # For each reaction, show a small graph and metadata (reactants -> reaction -> products)
+        def reaction_to_dot(reaction):
+            def label_for(component):
+                if component is None:
+                    return ""
+                if isinstance(component, dict):
+                    return component.get("compound_lm_id") or component.get("compound_name")
+                return getattr(component, "compound_lm_id", None) or getattr(component, "compound_name", None)
 
-#
+            reactants = [label_for(c) for c in getattr(reaction, "reactants", []) or []]
+            products = [label_for(c) for c in getattr(reaction, "products", []) or []]
+
+            rxn_label = (getattr(reaction, "reaction_name", "") or "").replace('"', '\\"')
+            enzymes = []
+            if getattr(reaction, "enzyme_ids", None):
+                enzymes = list(getattr(reaction, "enzyme_ids") or [])
+            elif getattr(reaction, "proteins", None):
+                enzymes = [ (p.get("ec_number") if isinstance(p, dict) else getattr(p, "ec_number", None)) for p in getattr(reaction, "proteins", []) ]
+            enzyme_label = ", ".join([e for e in enzymes if e])
+
+            lines = ["digraph reaction {", "  rankdir=LR;", "  node [shape=box, style=filled, fillcolor=\"#EFEFEF\"];"]
+
+            for i, r in enumerate(reactants):
+                safe = str(r).replace('"', '\\"')
+                lines.append(f'  r{i} [label="{safe}"];')
+
+            for j, p in enumerate(products):
+                safe = str(p).replace('"', '\\"')
+                lines.append(f'  p{j} [label="{safe}"];')
+
+            # reaction centre
+            rxn_safe = rxn_label if rxn_label else getattr(reaction, "reaction_id", "reaction")
+            rxn_safe = rxn_safe.replace('"', '\\"')
+            lines.append(f'  rxn [label="{rxn_safe}\n{enzyme_label}", shape=diamond, style=filled, fillcolor=\"#FFDDAA\"];')
+
+            for i in range(len(reactants)):
+                lines.append(f'  r{i} -> rxn;')
+            for j in range(len(products)):
+                lines.append(f'  rxn -> p{j};')
+
+            lines.append('}')
+            return "\n".join(lines)
+
+        # Provide a dropdown to select a reaction and view its graph + metadata
+        reactions = st.session_state.get("reactions", [])
+        if reactions:
+            reaction_options = [f"{i}: {getattr(r, 'reaction_name', '')} ({getattr(r, 'reaction_id', '')})" for i, r in enumerate(reactions)]
+            sel = st.selectbox("Select reaction to view", ["(none)"] + reaction_options, key="reaction_select")
+            if sel and sel != "(none)":
+                try:
+                    selected_idx = int(sel.split(":", 1)[0])
+                except Exception:
+                    selected_idx = None
+
+                if selected_idx is not None:
+                    r = reactions[selected_idx]
+                    try:
+                        dot = reaction_to_dot(r)
+                        st.graphviz_chart(dot)
+                    except Exception as e:
+                        st.write(f"Could not render graph: {e}")
+
+                    # metadata: enzymes and pathways
+                    enzymes = getattr(r, "enzyme_ids", None) or []
+                    if not enzymes and getattr(r, "proteins", None):
+                        enzymes = [ (p.get("ec_number") if isinstance(p, dict) else getattr(p, "ec_number", None)) for p in getattr(r, "proteins", []) ]
+                    st.write("**Enzymes / EC numbers:**", ", ".join([e for e in enzymes if e]))
+
+                    pathways_list = []
+                    for p in getattr(r, "pathways", []) or []:
+                        if isinstance(p, dict):
+                            pathways_list.append(p.get("name") or p.get("pathway_name"))
+                        else:
+                            pathways_list.append(getattr(p, "pathway_name", None) or getattr(p, "name", None))
+                    st.write("**Pathways:**", ", ".join([p for p in pathways_list if p]))
+
         # Build pathways table, handling pathway dicts or objects and multiple pathways per reaction
         pathway_rows = []
         for r in st.session_state.get("reactions", []):
@@ -422,11 +505,18 @@ with tabs[tab_index["reactions"]]:
             if lipids_with_rxn:
                 st.subheader("Lipids Annotated with Reactions")
 
-                lip_df = pd.DataFrame([{
-                    "input_name": getattr(lip, "input_name", None),
-                    "lm_id": getattr(lip, "lm_id", None),
-                    "reactions": ", ".join(getattr(r, "reaction_name", "") for r in (lip.reactions or [])),
-                } for lip in lipids_with_rxn])
+                lip_rows = []
+                for lip in lipids_with_rxn:
+                    reactions_str = ", ".join([
+                        s for s in (getattr(r, "reaction_name", None) for r in (lip.reactions or [])) if s
+                    ])
+                    lip_rows.append({
+                        "input_name": getattr(lip, "input_name", None),
+                        "lm_id": getattr(lip, "lm_id", None),
+                        "generic_lm_id": getattr(lip, "generic_lm_id", None),
+                        "reactions": reactions_str,
+                    })
+                lip_df = pd.DataFrame(lip_rows)
 
                 st.dataframe(lip_df)
             else:

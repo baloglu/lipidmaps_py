@@ -150,7 +150,7 @@ for lipid in dataset.lipids[:5]:
    for sample in dataset.samples[:5]:
       print(f"{sample.sample_id}\t{lipid.input_name}\t{lipid.get_value_for_sample(sample)}")
       'or'
-      print(f"{sample.sample_id}\t{lipid.input_name}\t{sample.get_value_for_lipid(lipid)}")
+      print(f"{sample.sample_id}\t{lipid.input_name}\t{lipid.get_value_for_sample(sample)}")
       'or more specific value'
       print(f"{sample.sample_id}\t{lipid.input_name}\t{dataset.get_value(sample,lipid)}")
 
@@ -172,6 +172,34 @@ We have a basic streamlit demo script that you can try.
 pip install streamlit
 streamlit run scripts/streamlit_demo.py
 ```
+
+In this demo, you can either use existing csv and tsv files in demo folder or upload your own.
+You can preview your data, see validation report and associated LIPID MAPS reactions.
+
+## New / Updated API Methods
+
+The codebase recently added a number of convenience helpers on the dataset and model objects for working with quantitation values and for grouping lipids. These are useful when writing downstream analyses or powering the Streamlit demo.
+
+- `LipidDataset.mean_value_for_lipids(sample, lipids, skip_missing=True)`: compute the mean quantitation for a given sample across a list of lipid objects. `sample` may be a `SampleMetadata` object or a sample id string. Example:
+
+```python
+# sample can be a SampleMetadata or sample id
+mean = dataset.mean_value_for_lipids(sample, class_lipids, skip_missing=True)
+```
+
+- `LipidDataset.get_lipid_values_for_samples(sample_id)`: returns a list of objects describing each lipid's reported value for the given sample, typically in the form `[{"input_name": "orig name", "value": 123.4}, ...]`. Example:
+
+```python
+vals = dataset.get_lipid_values_for_samples('sample_01')
+```
+
+- `LipidDataset.get_lipids_by_generic_lm_id(generic_lm_id)`: return lipid objects that share a generic LM ID (useful for aggregations by headgroup).
+
+- `LipidDataset.get_lipids_for_reaction(reaction_or_id)`: return lipid objects participating in a reaction (accepts a `ReactionData` object or a reaction id).
+
+- `QuantifiedLipid.get_value_for_sample(sample_or_id)`: convenience on the lipid object to fetch a single sample's value from the lipid's internal `values` mapping.
+
+These helpers are used by `scripts/streamlit_demo.py` to build per-sample and per-lipid views, compute mean values by class, and annotate reactions. 
 ## Example Datasets
 
 Sample datasets are available in `tests/data/inputs/`:
