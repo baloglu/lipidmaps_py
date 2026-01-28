@@ -215,7 +215,7 @@ with tabs[tab_index["processed"]]:
             else:
                 fig = px.bar(df_vals, x="input_name", y="value", title=f"Lipid values for sample {sample_sel}")
                 fig.update_layout(xaxis_title="Lipid", yaxis_title="Value", xaxis_tickangle=-45)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="sample_lipid_bar_chart")
                 st.dataframe(df_vals)
         else:
             st.info("No samples available in dataset.")
@@ -240,7 +240,7 @@ with tabs[tab_index["processed"]]:
                 df_class = pd.DataFrame(class_rows).sort_values(by="mean_value", ascending=False)
                 fig = px.bar(df_class, x="main_class", y="mean_value", title=f"Mean per main class for sample {sample_sel}")
                 fig.update_layout(xaxis_title="Main class", yaxis_title="Mean value", xaxis_tickangle=-45)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="mean_value_per_main_class")
                 st.dataframe(df_class)
             else:
                 st.info("No main class information available to compute means.")
@@ -276,7 +276,7 @@ with tabs[tab_index["processed"]]:
                     df_vals = pd.DataFrame(rows)
                     fig = px.bar(df_vals, x="sample", y="value", title=f"Quantitation for {lipid.input_name}")
                     fig.update_layout(xaxis_title="Sample", yaxis_title="Value")
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, key="sample_lipid_bar_chart_2")
                 else:
                     st.info("No quantitation values available for this lipid.")
         else:
@@ -290,7 +290,7 @@ with tabs[tab_index["processed"]]:
             if len(counts) > 0:
                 st.subheader("Main Class Distribution")
                 fig = px.pie(values=counts.values, names=counts.index)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="main_class_distribution")
 
         # LMID Found
         if "lm_id" in df_proc:
@@ -299,8 +299,7 @@ with tabs[tab_index["processed"]]:
                 st.subheader("LM ID Found Distribution")
                 fig = px.pie(values=lm_counts.values,
                              names=["LM ID Found" if x else "Not Found" for x in lm_counts.index])
-                st.plotly_chart(fig, use_container_width=True)
-
+                st.plotly_chart(fig, use_container_width=True, key="lm_id_found_distribution")
         # Generic LMID
         if "generic_lm_id" in df_proc:
             gen_counts = df_proc["generic_lm_id"].notna().value_counts()
@@ -308,7 +307,7 @@ with tabs[tab_index["processed"]]:
                 st.subheader("Generic LM ID Found Distribution")
                 fig = px.pie(values=gen_counts.values,
                              names=["Found" if x else "Not Found" for x in gen_counts.index])
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="generic_lm_id_found_distribution")
 
         # Neither LMID nor Generic LMID
         if "lm_id" in df_proc and "generic_lm_id" in df_proc:
@@ -319,7 +318,7 @@ with tabs[tab_index["processed"]]:
                 fig = px.pie(values=neither_counts.values,
                              names=["Neither Found" if x else "At Least One Found"
                                     for x in neither_counts.index])
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="neither_lm_id_found_distribution")
 
 
 # --------------------------------------------------------------
@@ -370,10 +369,52 @@ with tabs[tab_index["reactions"]]:
                 (p.get("ec_number") if isinstance(p, dict) else getattr(p, "ec_number", ""))
                 for p in getattr(r, "proteins", [])
             ),
+            "genes": ", ".join(
+                (p.get("gene_name") if isinstance(p, dict) else getattr(p, "ec_number", ""))
+                for p in getattr(r, "genes", [])
+            )
         } for r in st.session_state["reactions"]])
 
         st.dataframe(rxn_df)
 
+#
+        # Build pathways table, handling pathway dicts or objects and multiple pathways per reaction
+        pathway_rows = []
+        for r in st.session_state.get("reactions", []):
+            for p in getattr(r, "pathways", []) or []:
+                if isinstance(p, dict):
+                    pid = p.get("id")
+                    name = p.get("name")
+                    desc = p.get("wikipathways_description") or p.get("description")
+                    org = p.get("organism")
+                else:
+                    pid = getattr(p, "id", None)
+                    name = getattr(p, "name", None) 
+                    desc = getattr(p, "wikipathways_description", None)
+                    org = getattr(p, "organism", None)
+
+                pathway_rows.append({
+                    "pathway_name": name,
+                    "Description": desc,
+                    "organism": org,
+                })
+
+        if pathway_rows:
+            # Deduplicate pathways by (pathway_id, pathway_name)
+            unique_rows = []
+            seen = set()
+            for row in pathway_rows:
+                key = (row.get("pathway_id"), row.get("pathway_name"))
+                if key in seen:
+                    continue
+                seen.add(key)
+                unique_rows.append(row)
+
+            pathway_df = pd.DataFrame(unique_rows)
+            st.subheader("Pathways for Reactions")
+            st.dataframe(pathway_df)
+        else:
+            st.info("No pathway entries available for fetched reactions.")
         # Show lipids annotated with reactions
         dataset = st.session_state.get("dataset")
         if dataset:
