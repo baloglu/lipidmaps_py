@@ -74,7 +74,36 @@ def main():
             elif selected_file != "(none)":
                 file_to_use = os.path.join(test_data_dir, selected_file)
 
+            prev_file = st.session_state.get("_last_file_used")
             st.session_state["file_to_use"] = file_to_use
+
+            # If the chosen file changed, reset dependent session state to sensible defaults
+            if file_to_use != prev_file:
+                reset_keys = [
+                    "dataset",
+                    "processed",
+                    "validation_issues",
+                    "generic_lm_id_assigned",
+                    "reactions_fetched",
+                    "validation_passed",
+                    "has_validation_report",
+                    "show_all_issues",
+                    "show_validation_section",
+                    "reactions",
+                ]
+
+                for key in reset_keys:
+                    if key in defaults:
+                        st.session_state[key] = defaults[key]
+                    else:
+                        # fallback sensible values
+                        st.session_state[key] = [] if key.endswith("issues") or key == "reactions" else False
+
+                # clear any UI selection tied to previous dataset
+                if "selected_lipid_idx" in st.session_state:
+                    st.session_state.pop("selected_lipid_idx", None)
+
+                st.session_state["_last_file_used"] = file_to_use
 
         # ---- OPTIONS ----
         with st.expander("Options", expanded=True):

@@ -5,6 +5,7 @@ import numpy as np
 from .base import LipidmapsBaseModel
 from pydantic import Field
 from .reaction import ReactionData, CompoundComponent
+
 logger = logging.getLogger(__name__)
 
 
@@ -94,6 +95,9 @@ class LipidDataset(LipidmapsBaseModel):
     
     def list_lipids_with_lmid(self) -> List[str]:
         return [l.input_name for l in self.lipids if l.lm_id is not None]
+    
+    def list_lm_ids(self) -> List[str]:
+        return [l.lm_id for l in self.lipids if l.lm_id is not None]
 
     def list_lipids_with_reactions(self) -> List[str]:
         return [l.input_name for l in self.lipids if l.reactions is not None and len(l.reactions) > 0]

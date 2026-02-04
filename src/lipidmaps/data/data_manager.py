@@ -512,6 +512,90 @@ class DataManager(LipidmapsBaseModel):
         # Call the new method on LipidDataset
         return dataset.fill_missing_lm_ids_from_headgroups()
 
+    def annotate_lipids_with_lmsd_details(self, quantified: Optional[List[Any]] = None) -> int:
+        """Annotate quantified lipids with additional LMSD details (abbrev, generic_lm_id).
+
+        This collects LM IDs present on the provided `quantified` list (or
+        manager's dataset), queries `LMSD.get_molecules_by_lm_ids`, and maps
+        returned fields (`abbrev`, `generic_lm_id`, `abbrev_chains`, `smiles`)
+        back onto the QuantifiedLipid objects.
+
+        Returns number of lipids updated.
+        """
+        # If called with no explicit list, try to use the manager's dataset
+        if quantified is None:
+            if self.dataset is None:
+                logger.info("No dataset available to annotate with LMSD details")
+                return 0
+            # Delegate to LipidDataset method if available
+            ds = self.dataset
+            if hasattr(ds, "annotate_with_lmsd_details"):
+                return ds.annotate_with_lmsd_details()
+            quantified = ds.lipids
+
+        # If quantified is a LipidDataset instance, delegate to its method
+        if hasattr(quantified, "annotate_with_lmsd_details"):
+            try:
+                return quantified.annotate_with_lmsd_details()
+            except Exception:
+                logger.exception("Failed to annotate dataset with LMSD details via LipidDataset")
+                return 0
+
+        # Fallback: quantified is a plain list; perform minimal annotation using LMSD client
+        lm_ids = [getattr(q, "lm_id", None) for q in quantified if getattr(q, "lm_id", None)]
+        if not lm_ids:
+            logger.info("No LM IDs available to query LMSD for details")
+            return 0
+
+        lm_ids = list(dict.fromkeys(lm_ids))
+        try:
+            mols = LMSD().get_molecules_by_lm_ids(lm_ids)
+        except Exception:
+            logger.exception("Failed to fetch LMSD molecule details")
+            return 0
+
+        mapping: Dict[str, Dict[str, Any]] = {}
+        for m in (mols or []):
+            if m is None:
+                continue
+            if isinstance(m, dict):
+                lm = m.get("lm_id")
+                mapping[lm] = m
+            else:
+                lm = getattr(m, "lm_id", None)
+                mapping[lm] = {
+                    "abbrev": getattr(m, "abbrev", None),
+                    "generic_lm_id": getattr(m, "generic_lm_id", None),
+                    "abbrev_chains": getattr(m, "abbrev_chains", None),
+                    "smiles": getattr(m, "smiles", None),
+                }
+
+        updated = 0
+        for q in quantified:
+            lm = getattr(q, "lm_id", None)
+            if not lm or lm not in mapping:
+                continue
+            item = mapping[lm]
+            try:
+                if hasattr(q, "abbrev") and item.get("abbrev"):
+                    q.abbrev = item.get("abbrev")
+                if hasattr(q, "generic_lm_id") and item.get("generic_lm_id"):
+                    q.generic_lm_id = item.get("generic_lm_id")
+                if hasattr(q, "abbrev_chains") and item.get("abbrev_chains"):
+                    q.abbrev_chains = item.get("abbrev_chains")
+                if hasattr(q, "smiles") and item.get("smiles"):
+                    q.smiles = item.get("smiles")
+                try:
+                    q.lmsd_details_fetched = True
+                except Exception:
+                    pass
+                updated += 1
+            except Exception:
+                logger.exception(f"Failed to annotate lipid {getattr(q, 'input_name', None)} with LMSD details")
+
+        logger.info(f"Annotated {updated} lipids with LMSD details")
+        return updated
+
     def fetch_reactions_for_lm_ids(self, dataset: Optional[Any] = None, reaction_type: Optional[str] = None, only_lipid_components: bool = True) -> List[Any]:
         """
         Fetch Reaction objects for the given list of LM IDs using the ReactionChecker API.
