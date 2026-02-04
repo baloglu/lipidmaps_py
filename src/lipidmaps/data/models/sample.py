@@ -97,7 +97,15 @@ class LipidDataset(LipidmapsBaseModel):
         return [l.input_name for l in self.lipids if l.lm_id is not None]
     
     def list_lm_ids(self) -> List[str]:
-        return [l.lm_id for l in self.lipids if l.lm_id is not None]
+        # Collect lm_ids, skip missing values, and preserve original order
+        lm_ids = [l.lm_id for l in self.lipids if l.lm_id is not None]
+        seen = set()
+        unique = []
+        for lid in lm_ids:
+            if lid not in seen:
+                seen.add(lid)
+                unique.append(lid)
+        return unique
 
     def list_lipids_with_reactions(self) -> List[str]:
         return [l.input_name for l in self.lipids if l.reactions is not None and len(l.reactions) > 0]
@@ -208,26 +216,6 @@ class LipidDataset(LipidmapsBaseModel):
             return None
         return float(np.nanmean(collected_values))
 
-    def print_lipid_info(self, lipid):
-        recognized = bool(lipid.standardized_name or lipid.lm_id)
-        print(f"Input name: {lipid.input_name}")
-        print(f"Recognized: {recognized}")
-        print(f"Standardized name: {lipid.standardized_name}")
-        print(f"LM ID: {lipid.lm_id}")
-        print(f"Reactions: {[reaction.reaction_name for reaction in (lipid.reactions or [])]}")
-        print(f"Values: {lipid.values}")
-
-    def print_table(self):
-        samples = self.list_samples()
-        header = ["Lipid"] + samples
-        print("\t".join(header))
-        for lipid in self.lipids:
-            row = [lipid.input_name]
-            for s in samples:
-                v = lipid.values.get(s)
-                row.append("" if v is None else str(v))
-            print("\t".join(row))
-
     def get_values(self, lipid_name: str) -> Optional[Dict[str, float]]:
         """
         Return the values dict for a lipid, matching input_name case-insensitively.
@@ -258,7 +246,6 @@ class LipidDataset(LipidmapsBaseModel):
             ]
         return result
     
-
     def get_lipids_by_generic_lm_id(self, generic_lm_id: str) -> List[QuantifiedLipid]:
         """Return all QuantifiedLipid objects with the given generic lm_id."""
         return [l for l in self.lipids if l.generic_lm_id == generic_lm_id]

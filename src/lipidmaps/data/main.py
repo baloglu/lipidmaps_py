@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 from .data_manager import DataManager
+from .models.lmsd import LMSD
 from .ingestion.csv_reader import CSVFormat
 
 
@@ -113,8 +114,9 @@ def main() -> None:
     logger.info(f"Dataset ready: {len(dataset.samples)} samples, {len(dataset.lipids)} lipids")
     logger.info(f"Sample column info: {dataset.samples[:3]}")
     logger.info(f"Samples: {dataset.list_samples()[:3]}")
-    # logger.info(f"Lipids: {dataset.print_table(dataset)}")
 
+    lmids = dataset.list_lm_ids()
+    print(f"LM IDs in dataset: {LMSD.get_molecules_by_lm_id(lmids)}")  # Print first 5 LM IDs
     # Optionally fill missing LM IDs using LMSD and report what changed
     if getattr(args, "fill_lmsd", False):
         # Use DataManager helper to run LMSD fill and report updates
@@ -138,9 +140,6 @@ def main() -> None:
     print(reactions[:1])  # Print first 1 reaction for brevity
     manager.annotate_lipids_with_reactions(dataset, reactions)
     logger.info(f"Lipids with reactions: {dataset.list_lipids_with_reactions()[:1]}")
-    lipid_objects = dataset.find_lipids("TG 22:0_18:1_18:2")
-    for lipid in lipid_objects[:1]:  # Print info for first 1 matches
-        dataset.print_lipid_info(lipid)
     
     lipid_objects_with_reactions = dataset.get_lipids_with_reactions()
     logger.info(f"Total lipids with reactions: {len(lipid_objects_with_reactions)}")

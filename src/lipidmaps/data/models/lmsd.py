@@ -10,6 +10,7 @@ class LMSDResult(LipidmapsBaseModel):
     input_name: Optional[str] = None
     name: Optional[str] = None
     lm_id: Optional[str] = None
+    generic_lm_id: Optional[str] = None
     sys_name: Optional[str] = None
     abbrev: Optional[str] = None
     abbrev_chains: Optional[Union[str, float]] = None
@@ -20,6 +21,8 @@ class LMSDResult(LipidmapsBaseModel):
 
 class LMSD:
     LMSDNameUrl = "https://dev.lipidmaps.org/api/reactions/names"
+    LMSDLmidUrl = "https://dev.lipidmaps.org/api/molecules/lmids"
+
 
     @staticmethod
     def get_lm_ids_by_name(lipid_names: List[str]) -> Union[List[Dict[str, Any]], Dict[str, Any], None]:
@@ -142,3 +145,62 @@ class LMSD:
             results.append(res.to_dict())
 
         return results
+    
+    @staticmethod
+    def get_molecules_by_lm_id(lm_ids: List[str]) -> Union[List[LMSDResult], Dict[str, Any], None]:
+        """Return molecule details using LMSD API by LM IDs.
+
+        Args:
+            lm_ids: List of LM ID strings to fetch details for
+
+        Returns:
+            List of dictionaries with molecule details,
+            or an error dictionary with an `error` key on failure.
+        """
+        data = {"lmids": lm_ids}
+        try:
+            logger.info("Sending request to LMSD API for LM IDs")
+            response = requests.post(
+                LMSD.LMSDLmidUrl, json=data, verify=False, timeout=20
+            )
+            response.raise_for_status()
+        except requests.RequestException as e:
+            logger.error(f"LMSD API call failed: {e}")
+            return {"error": str(e)}
+
+        try:
+            json_data = response.json()
+        except ValueError:
+            json_data = None
+
+        if json_data is not None:
+            # If the response is a dict that looks like an error, return it
+            if isinstance(json_data, dict):
+                if 'error' in json_data and len(json_data) == 1:
+                    return json_data
+                json_list = [json_data]
+            elif isinstance(json_data, list):
+                json_list = json_data
+            else:
+                json_list = None
+
+            if json_list is not None:
+                results: List[LMSDResult] = []
+                for item in json_list:
+                    res = LMSDResult(
+                        input_name=item.get('input_name'),
+                        matched_field='lm_id',
+                        name=item.get('name'),
+                        sys_name=item.get('sys_name'),
+                        abbrev=item.get('abbrev'),
+                        abbrev_chains=item.get('abbrev_chains'),
+                        lm_id=item.get('lm_id') or item.get('lmid'),
+                        generic_lm_id=item.get('generic_lm_id'),
+                    )
+                    results.append(res)
+
+                return results
+
+        # Fallback: LMSD returned non-JSON or unexpected JSON structure
+        logger.error("LMSD returned invalid or non-JSON response for LMIDs")
+        return {"error": "Invalid or non-JSON response from LMSD"}
