@@ -1,6 +1,0 @@
-POST https://dev.lipidmaps.org/api/reactions/names HTTP/1.1
-content-type: application/json
-
-{
-    "names":["Butyrylcarnitine", "Cholesterol", "PC 18:1"]
-}

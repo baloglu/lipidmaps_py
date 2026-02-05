@@ -1,0 +1,35 @@
+### Reaction lookup by names
+POST https://dev.lipidmaps.org/api/reactions/names HTTP/1.1
+content-type: application/json
+
+{
+    "names":["Butyrylcarnitine", "Cholesterol", "PC 18:1"]
+}
+
+### Reaction lookup by LMSD IDs
+POST https://dev.lipidmaps.org/api/reactions HTTP/1.1
+content-type: application/json
+
+{
+    "search_mode": "default",
+    "search_type": "all",
+    "generic_reactions": false,
+    "lmsd_ids": ["LMST02030299"]
+}
+
+### Refmet lookup by names
+POST https://www.metabolomicsworkbench.org/databases/refmet/name_to_refmet_new_minID.php HTTP/1.1
+content-type: application/json
+
+{
+    "metabolite_name":"PC(16:0/18:1)\nCholesterol\nTAG(16:0/18:1/18:2)"
+}
+
+### LMSD lookup by lm_ids
+POST https://dev.lipidmaps.org/api/molecules/lmids HTTP/1.1
+content-type: application/json  
+
+{
+    "lmids": ["LMFA01010001", "LMGP01010001", "LMST02030299"]
+}
+

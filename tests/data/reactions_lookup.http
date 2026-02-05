@@ -1,9 +1,0 @@
-POST https://dev.lipidmaps.org/api/reactions HTTP/1.1
-content-type: application/json
-
-{
-    "search_mode": "default",
-    "search_type": "all",
-    "generic_reactions": true,
-    "lmsd_ids": ["LMST02030299"]
-}
