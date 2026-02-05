@@ -162,6 +162,23 @@ queried_lipids = dataset.find_lipids("query")
 lipid_name = "lipid name"
 values = dataset.get_values(lipid_name)
 print(f"Values for {lipid_name}: {values}")
+
+# Fetch reactions from LIPID MAPS
+# We can query LIPID MAPS for lipid reactions by using list of lm_id's
+# DataManager class facilitate connections between different classes and fetching data from external API's
+
+from lipidmaps.data.data_manager import DataManager
+manager = DataManager()
+# LIPID MAPS reactions response includes lipids and non lipids for reactant and products. It can also return generic reactions for the lipid.
+ 
+reactions = manager.fetch_reactions_for_lm_ids(dataset = dataset, generic_reactions=True, only_lipid_components=False)
+
+# Response is a list of ReactionData objects that includes reaction_id, proteins, genes, curations, reactants and products. 
+
+# annotate dataset with reactions (optional)
+# You can annotate your dataset with reaction response.
+# This function will add reactions to LipidDataset class and update each input data
+manager.annotate_lipids_with_reactions(dataset, reactions)
 ```
 
 ## Streamlit demo
