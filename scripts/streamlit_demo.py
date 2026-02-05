@@ -63,22 +63,25 @@ def main():
                 st.warning(f"Test data directory not found: {test_data_dir}")
 
             selected_file = st.selectbox("Select test data", ["(none)"] + test_files)
-            uploaded_file = st.file_uploader("Or upload CSV", type=["csv"])
+            uploaded_file = st.file_uploader("Or upload CSV", type=["csv", "tsv"])
 
             file_to_use = None
+            file_name = None
             if uploaded_file:
                 import tempfile
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+                with tempfile.NamedTemporaryFile(delete=False) as tmp:
                     tmp.write(uploaded_file.read())
                     file_to_use = tmp.name
+                    file_name = uploaded_file.name
             elif selected_file != "(none)":
                 file_to_use = os.path.join(test_data_dir, selected_file)
-
-            prev_file = st.session_state.get("_last_file_used")
+                file_name = selected_file
+            
+            prev_file_name = st.session_state.get("_last_file_used")
             st.session_state["file_to_use"] = file_to_use
 
             # If the chosen file changed, reset dependent session state to sensible defaults
-            if file_to_use != prev_file:
+            if file_name != prev_file_name:
                 reset_keys = [
                     "dataset",
                     "processed",
@@ -103,7 +106,7 @@ def main():
                 if "selected_lipid_idx" in st.session_state:
                     st.session_state.pop("selected_lipid_idx", None)
 
-                st.session_state["_last_file_used"] = file_to_use
+                st.session_state["_last_file_used"] = file_name
 
         # ---- OPTIONS ----
         with st.expander("Options", expanded=True):
