@@ -2,6 +2,8 @@
 import logging
 from typing import Any, List, Dict, Optional, Union
 import numpy as np
+import re
+from ..utils.headgroups import lipidmaps_headgroups
 from .base import LipidmapsBaseModel
 from pydantic import Field
 from .reaction import ReactionData, CompoundComponent
@@ -135,26 +137,45 @@ class LipidDataset(LipidmapsBaseModel):
             if q in (l.input_name or "").lower() or (l.standardized_name and q in l.standardized_name.lower())
         ]
 
+    def _find_generic_lm_id_from_headgroup(self, name: str) -> Optional[str]:
+        """
+        Find Generic LM_ID string using headgroup mapping.
+        Returns:
+           Generic LM_ID string if a headgroup match is found, otherwise None.
+        """
+        headgroup = None
+        if " O-" in name or " P-" in name:
+            dash_index = name.index("-")
+            headgroup = name[:dash_index+1]
+        else:
+            match = re.match(r"^([A-Za-z0-9\-]+)", name)
+            if match:
+                headgroup = match.group(1)
+        if headgroup:
+            lm_ids = lipidmaps_headgroups.get(headgroup)
+            if lm_ids and lm_ids[0]:
+                return lm_ids[0]
+        return None
+    
     def fill_missing_lm_ids_from_headgroups(self) -> int:
         """
         Fill missing lm_id fields on QuantifiedLipid objects using headgroup mapping from headgroups.py.
         Returns:
             Number of lipids updated with an lm_id.
         """
-        import re
-        from ..utils.headgroups import lipidmaps_headgroups
         updated = 0
         for lipid in self.lipids:
             if not getattr(lipid, "generic_lm_id", None):
-                match = re.match(r"^([A-Za-z0-9\-]+)", lipid.input_name)
-                if match:
-                    headgroup = match.group(1)
-                    lm_ids = lipidmaps_headgroups.get(headgroup)
-                    if lm_ids and lm_ids[0]:
-                        lipid.generic_lm_id = lm_ids[0]
-                        lipid.lm_id_found_by = "headgroup"
-                        updated += 1
-        import logging
+                generic_lm_id = None
+                if lipid.standardized_name:
+                    generic_lm_id = self._find_generic_lm_id_from_headgroup(lipid.standardized_name)
+                if not generic_lm_id and lipid.input_name:
+                    generic_lm_id = self._find_generic_lm_id_from_headgroup(lipid.input_name)
+                if generic_lm_id:
+                    lipid.generic_lm_id = generic_lm_id
+                    lipid.lm_id_found_by = "headgroup"
+                    updated += 1
+
         logger = logging.getLogger(__name__)
         logger.info(f"Updated {updated} generic_lm_id fields using headgroup mapping (via LipidDataset)")
         return updated

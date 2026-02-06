@@ -2,6 +2,9 @@ lipidmaps_headgroups = {
     "CL": [
         "LMGP12010000"
     ],
+    "FA": [
+        "LMFA01010000"
+    ],
     "H4": [
         "LMSP0505EO00"
     ],
@@ -25,6 +28,9 @@ lipidmaps_headgroups = {
     ],
     "TG": [
         "LMGL03010000"
+    ],
+    "TG O-": [
+        "LMGL03020000"
     ],
     "PI": [
         "LMGP06010000"
@@ -75,14 +81,21 @@ lipidmaps_headgroups = {
         "LMSP0504AI00"
     ],
     "LPS": [
-        "LMGP03050000",
-        "LMGP0305AA00"
+        "LMGP03050000"
     ],
     "LPI": [
         "LMGP06050000"
     ],
+    "MGDG": [
+        "LMGL0501AA00"
+    ],
+    "DGDG": [
+        "LMGL0501AD00"
+    ],
+    "SQDG": [
+        "LMGL0501AG00"
+    ],
     "GT1b": [
-        "LMSP0601AT00",
         "LMSP0601BW00"
     ],
     "PI-O": [
@@ -98,22 +111,21 @@ lipidmaps_headgroups = {
         "LMSP0504AG00"
     ],
     "GQ1b": [
-        "LMSP0601AV00",
         "LMSP0601CU00"
     ],
-    "PS-O": [
+    "PS O-": [
         "LMGP03020000"
     ],
     "GD1a": [
-        "LMSP0601AS00"
+        "LMSP0601DB00"
     ],
-    "PC-O": [
+    "PC O-": [
         "LMGP01020000"
     ],
     "PA-O": [
         "LMGP10020000"
     ],
-    "PE-O": [
+    "PE O-": [
         "LMGP02020000"
     ],
     "iGb5": [
@@ -134,10 +146,10 @@ lipidmaps_headgroups = {
     "Aleb": [
         "LMSP0504AH00"
     ],
-    "PG-O": [
+    "PG O-": [
         "LMGP04020000"
     ],
-    "LPS-O": [
+    "LPS O-": [
         "LMGP03060000"
     ],
     "GD1aa": [
@@ -155,19 +167,19 @@ lipidmaps_headgroups = {
     "GT1ba": [
         "LMSP0601CF00"
     ],
-    "LPA-O": [
+    "LPA O-": [
         "LMGP10060000"
     ],
-    "LPC-O": [
+    "LPC O-": [
         "LMGP01060000"
     ],
-    "LPE-O": [
+    "LPE O-": [
         "LMGP02060000"
     ],
-    "LPG-O": [
+    "LPG O-": [
         "LMGP04060000"
     ],
-    "LPI-O": [
+    "LPI O-": [
         "LMGP06060000"
     ],
     "Lex-7": [
@@ -277,7 +289,7 @@ lipidmaps_headgroups = {
     "GalNAc-GD1a": [
         "LMSP0601BG00"
     ],
-    "GD1a , GD1e": [
+    "GD1e": [
         "LMSP0601BA00"
     ],
     "disialyl Lea": [
@@ -304,23 +316,26 @@ lipidmaps_headgroups = {
     "trimeric LeY-9": [
         "LMSP0505BA00"
     ],
-    "PA-Plasmalogen": [
+    "PA P-": [
         "LMGP10030000"
     ],
-    "PC-Plasmalogen": [
+    "PC P-": [
         "LMGP01030000"
     ],
-    "PE-Plasmalogen": [
+    "PE P-": [
         "LMGP02030000"
     ],
-    "PG-plasmalogen": [
+    "PG P-": [
         "LMGP04030000"
     ],
-    "PI-plasmalogen": [
+    "PI P-": [
         "LMGP06030000"
     ],
-    "PS-Plasmalogen": [
+    "PS P-": [
         "LMGP03030000"
+    ],
+    "PT": [
+        "LMGP24010000"
     ],
     "SSEA-3 antigen": [
         "LMSP0502AE00"
@@ -335,25 +350,25 @@ lipidmaps_headgroups = {
     "X4 ganglioside": [
         "LMSP0601FW00"
     ],
-    "LPG-Plasmalogen": [
+    "LPG P-": [
         "LMGP04070000"
     ],
-    "LPA-Plasmalogen": [
+    "LPA P-": [
         "LMGP10070000"
     ],
     "9-0-acetyl GTb1": [
         "LMSP0601BL00"
     ],
-    "LPI-Plasmalogen": [
+    "LPI P-": [
         "LMGP06070000"
     ],
-    "LPS-Plasmalogen": [
+    "LPS P-": [
         "LMGP03070000"
     ],
-    "LPE-Plasmalogen": [
+    "LPE P-": [
         "LMGP02070000"
     ],
-    "LPC-Plasmalogen": [
+    "LPC P-": [
         "LMGP01070000"
     ],
     "IV 4Galb-nLcOse4": [
@@ -524,13 +539,19 @@ lipidmaps_headgroups = {
     "SM": [
         "LMSP03010000"
     ],
+    "SM3": [
+        "LMSP0602AA00"
+    ],
+    "SM4": [
+        "LMSP0602AN00"
+    ],
     "dhSM": [
         "LMSP030100A0"
     ],
-    "DG-O": [
+    "DG O-": [
         "LMGL02020000"
     ],
-    "PE-O": [
+    "PE O-": [
         "LMGP02020000"
     ],
     "PC-O": [
@@ -539,31 +560,31 @@ lipidmaps_headgroups = {
     "LPE-O": [
         "LMGP02060000"
     ],
-    "LPC-O": [
+    "LPC O-": [
         "LMGP01060000"
     ],
     "LPA-O": [
         "LMGP10060000"
     ],
-    "PE-P": [
+    "PE P-": [
         "LMGP02030000"
     ],
-    "PC-P": [
+    "PC P-": [
         "LMGP01030000"
     ],
-    "LPE-P": [
+    "LPE P-": [
         "LMGP02070000"
     ],
-    "LPC-P": [
+    "LPC P-": [
         "LMGP01070000"
     ],
     "LPA-P": [
         "LMGP10070000"
     ],
-    "Glc-Cer": [
+    "GlcCer": [
         "LMSP0501AA00"
     ],
-    "Gal-Cer": [
+    "GalCer": [
         "LMSP0501AC00"
     ],
     "Gal-SPB": [
@@ -663,6 +684,6 @@ lipidmaps_headgroups = {
         "LMST01010001"
     ],
     "CE": [
-        ""
+        "LMST01020000"
     ]
 }
