@@ -169,8 +169,8 @@ class LipidDataset(LipidmapsBaseModel):
                 generic_lm_id = None
                 if lipid.standardized_name:
                     generic_lm_id = self._find_generic_lm_id_from_headgroup(lipid.standardized_name)
-                if not generic_lm_id and lipid.input_name:
-                    generic_lm_id = self._find_generic_lm_id_from_headgroup(lipid.input_name)
+                # if not generic_lm_id and lipid.input_name:
+                #     generic_lm_id = self._find_generic_lm_id_from_headgroup(lipid.input_name)
                 if generic_lm_id:
                     lipid.generic_lm_id = generic_lm_id
                     lipid.lm_id_found_by = "headgroup"
