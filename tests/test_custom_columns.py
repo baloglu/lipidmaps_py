@@ -96,7 +96,7 @@ class TestCustomColumns(unittest.TestCase):
         self.assertEqual(len(data.samples()), 3)
 
         # Check group assignments
-        samples_dict = {s.sample_id: s.group for s in data.dataset.samples}
+        samples_dict = {s.sample_name: s.group for s in data.dataset.samples}
         self.assertEqual(samples_dict["Sample1"], "Control")
         self.assertEqual(samples_dict["Sample2"], "Control")
         self.assertEqual(samples_dict["Sample3"], "Treatment")
@@ -113,7 +113,7 @@ class TestCustomColumns(unittest.TestCase):
         self.assertEqual(len(data.lipids()), 2)
         self.assertEqual(len(data.samples()), 2)
 
-        samples_dict = {s.sample_id: s.group for s in data.dataset.samples}
+        samples_dict = {s.sample_name: s.group for s in data.dataset.samples}
         self.assertEqual(samples_dict["Value1"], "GroupA")
         self.assertEqual(samples_dict["Value2"], "GroupB")
 
@@ -155,7 +155,7 @@ class TestCustomColumns(unittest.TestCase):
         self.assertEqual(len(dataset.samples), 2)
 
         # Verify group assignments
-        samples_dict = {s.sample_id: s.group for s in dataset.samples}
+        samples_dict = {s.sample_name: s.group for s in dataset.samples}
         self.assertEqual(samples_dict["Value1"], "Control")
         self.assertEqual(samples_dict["Value2"], "Treatment")
 
@@ -169,7 +169,7 @@ class TestCustomColumns(unittest.TestCase):
             },
         )
 
-        samples_dict = {s.sample_id: s.group for s in data.dataset.samples}
+        samples_dict = {s.sample_name: s.group for s in data.dataset.samples}
         self.assertEqual(samples_dict["Sample1"], "Control")
         # Sample2 and Sample3 should use auto-detection
         self.assertIn(samples_dict["Sample2"], ["Sample", "unknown"])

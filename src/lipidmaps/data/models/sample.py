@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class SampleMetadata(LipidmapsBaseModel):
-    sample_id: str
+    sample_name: str
     group: str  # e.g., "Control", "WT"
     label: Optional[str] = None  # e.g., "Fasted", "Fed"
 
@@ -38,7 +38,7 @@ class SampleMetadata(LipidmapsBaseModel):
 
 class QuantifiedLipid(LipidmapsBaseModel):
     input_name: str
-    values: Dict[str, float]  # sample_id -> value
+    values: Dict[str, float]  # sample_name -> value
     pathway_ids: Optional[List[str]] = None  # e.g., KEGG or Reactome IDs
     pathway_names: Optional[List[str]] = None  # Human-readable names
     enzyme_ids: Optional[List[str]] = None  
@@ -65,7 +65,7 @@ class QuantifiedLipid(LipidmapsBaseModel):
         Retrieve the quantitation value for a given SampleMetadata object.
         Returns None if not found.
         """
-        return self.values.get(sample.sample_id)
+        return self.values.get(sample.sample_name)
 
     
     @property
@@ -87,7 +87,7 @@ class LipidDataset(LipidmapsBaseModel):
     reactions: List[ReactionData] = Field(default_factory=list)  # All reactions in dataset
 
     def list_samples(self) -> List[str]:
-        return [s.sample_id for s in self.samples]
+        return [s.sample_name for s in self.samples]
 
     def list_lipids(self) -> List[str]:
         return [l.input_name for l in self.lipids]
@@ -185,7 +185,7 @@ class LipidDataset(LipidmapsBaseModel):
         Retrieve the quantitation value for a given sample and lipid object.
         Returns None if not found.
         """
-        return lipid.values.get(sample.sample_id)
+        return lipid.values.get(sample.sample_name)
 
     def mean_value_for_lipids(
         self,
@@ -197,14 +197,14 @@ class LipidDataset(LipidmapsBaseModel):
         Compute the mean quantitation value for `sample` across a list of lipids.
 
         Parameters:
-        - sample: `SampleMetadata` or sample_id string.
+        - sample: `SampleMetadata` or sample_name string.
         - lipids: list of `QuantifiedLipid` objects or lipid `input_name` strings.
         - skip_missing: if True, missing values are ignored; if False, missing values are treated as NaN.
 
         Returns the mean as a float, or `None` if no valid numeric values were found.
         """
-        # resolve sample id
-        sample_id = sample.sample_id if hasattr(sample, "sample_id") else sample
+        # resolve sample name
+        sample_name = sample.sample_name if hasattr(sample, "sample_name") else sample
 
         collected_values: List[float] = []
         for item in lipids:
@@ -225,7 +225,7 @@ class LipidDataset(LipidmapsBaseModel):
             else:
                 lipid_obj = item
 
-            value = lipid_obj.values.get(sample_id)
+            value = lipid_obj.values.get(sample_name)
             if value is None:
                 if skip_missing:
                     continue
@@ -251,15 +251,15 @@ class LipidDataset(LipidmapsBaseModel):
     def get_grouped_data(self) -> Dict[str, List[QuantifiedLipid]]:
         grouped = {}
         for sample in self.samples:
-            grouped.setdefault(sample.group, []).append(sample.sample_id)
+            grouped.setdefault(sample.group, []).append(sample.sample_name)
         result = {}
-        for group, sample_ids in grouped.items():
+        for group, sample_names in grouped.items():
             result[group] = [
                 QuantifiedLipid(
                     input_name=lipid.input_name,
                     values={
                         sid: lipid.values[sid]
-                        for sid in sample_ids
+                        for sid in sample_names
                         if sid in lipid.values
                     },
                 )
@@ -271,19 +271,19 @@ class LipidDataset(LipidmapsBaseModel):
         """Return all QuantifiedLipid objects with the given generic lm_id."""
         return [l for l in self.lipids if l.generic_lm_id == generic_lm_id]
 
-    def get_lipid_values_for_samples(self, sample_id: str) -> List[Dict[str, Optional[float]]]:
+    def get_lipid_values_for_samples(self, sample_name: str) -> List[Dict[str, Optional[float]]]:
         """
-        Return a list of objects for a given `sample_id` where each object contains:
+        Return a list of objects for a given `sample_name` where each object contains:
             - `input_name`: the lipid's input name
-            - `value`: the quantitation value for the provided sample_id (or None)
+            - `value`: the quantitation value for the provided sample_name (or None)
 
         This is useful for building per-sample plots or tables.
         """
-        # maintain backward compatibility: accept either a sample_id string or a SampleMetadata object
-        if hasattr(sample_id, "sample_id"):
-            sid = sample_id.sample_id
+        # maintain backward compatibility: accept either a SampleMetadata object or a sample name string
+        if hasattr(sample_name, "sample_name"):
+            sid = sample_name.sample_name
         else:
-            sid = sample_id
+            sid = sample_name
 
         return [
             {"input_name": l.input_name, "value": l.values.get(sid)}
@@ -315,14 +315,14 @@ class LipidDataset(LipidmapsBaseModel):
 
 class Quantitation(LipidmapsBaseModel):
     lipid: "QuantifiedLipid"  # Reference to a QuantifiedLipid object
-    sample_values: Dict[str, float]  # sample_id -> value
+    sample_values: Dict[str, float]  # sample_name -> value
     method: Optional[str] = None  # e.g., 'LC-MS', 'GC-MS'
     unit: Optional[str] = None  # e.g., 'pmol', 'ng'
     notes: Optional[str] = None
     # Add more fields as needed
 
-    def get_value_for_sample(self, sample_id: str) -> Optional[float]:
-        return self.sample_values.get(sample_id)
+    def get_value_for_sample(self, sample_name: str) -> Optional[float]:
+        return self.sample_values.get(sample_name)
     
 if __name__ == "__main__":
 

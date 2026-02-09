@@ -76,7 +76,7 @@ data = import_data(
 ```python
 # View sample-to-group assignments
 for sample in data.dataset.samples:
-    print(f"{sample.sample_id} -> {sample.group}")
+    print(f"{sample.sample_name} -> {sample.group}")
 
 # Get statistics by group
 stats = data.get_group_statistics()

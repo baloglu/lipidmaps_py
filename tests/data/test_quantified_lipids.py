@@ -27,7 +27,7 @@ class TestPopulateManager(unittest.TestCase):
         ), "CSV must have at least one lipid column and one sample column"
 
         first_col = fieldnames[0]
-        sample_ids = fieldnames[1:]
+        sample_names = fieldnames[1:]
 
         # build quantified lipids
         lipid_data = []
@@ -36,12 +36,12 @@ class TestPopulateManager(unittest.TestCase):
             if not lipid_species:
                 continue
             values = {}
-            for sid in sample_ids:
-                raw = (row.get(sid) or "").strip()
+            for sample_name in sample_names:
+                raw = (row.get(sample_name) or "").strip()
                 if raw == "":
                     continue
                 try:
-                    values[sid] = float(raw)
+                    values[sample_name] = float(raw)
                 except ValueError:
                     # skip non-numeric cells
                     continue
@@ -52,7 +52,7 @@ class TestPopulateManager(unittest.TestCase):
         dataset = manager.process_csv(csv_path)
 
         # basic assertions
-        assert len(dataset.samples) == len(sample_ids)
+        assert len(dataset.samples) == len(sample_names)
         assert len(dataset.lipids) == len(lipid_data)
         # spot-check a QuantifiedLipid shape
         assert isinstance(dataset.lipids[0].values, dict)

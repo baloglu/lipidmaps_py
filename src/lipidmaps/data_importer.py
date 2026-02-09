@@ -62,7 +62,7 @@ class LipidData(BaseModel):
     @property
     def sample_names(self) -> List[str]:
         """Return list of sample IDs."""
-        return [s.sample_id for s in self.dataset.samples]
+        return [s.sample_name for s in self.dataset.samples]
 
     def successful_import_count(self) -> int:
         """Return count of successfully imported lipids."""

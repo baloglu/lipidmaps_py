@@ -126,10 +126,10 @@ from lipidmaps import process_csv
 dataset = process_csv("path/to/your/data.csv")
 
 # Csv file is processed into an object with iterable samples and lipids data
-# samples - the list of SampleMetadata type objects with sample_id, group and label attributes
+# samples - the list of SampleMetadata type objects with sample_name, group and label attributes
 print(dataset.samples[:1]) 
 
-# lipids - the list of QuantifiedLipid type objects with input_name, standardized_name, lm_id, recognized and values object "sample_id": "value"
+# lipids - the list of QuantifiedLipid type objects with input_name, standardized_name, lm_id, recognized and values object "sample_name": "value"
 print(dataset.lipids[:1]) 
 
 # List first 5 samples 
@@ -148,17 +148,17 @@ print(f"Lipid names with assigned lm ids: {dataset.list_lipids_with_lmid()[:5]}"
 # Find quantified lipid values by sample and lipid objects
 for lipid in dataset.lipids[:5]:
    for sample in dataset.samples[:5]:
-      print(f"{sample.sample_id}\t{lipid.input_name}\t{lipid.get_value_for_sample(sample)}")
+      print(f"{sample.sample_name}\t{lipid.input_name}\t{lipid.get_value_for_sample(sample)}")
       'or'
-      print(f"{sample.sample_id}\t{lipid.input_name}\t{lipid.get_value_for_sample(sample)}")
+      print(f"{sample.sample_name}\t{lipid.input_name}\t{lipid.get_value_for_sample(sample)}")
       'or more specific value'
-      print(f"{sample.sample_id}\t{lipid.input_name}\t{dataset.get_value(sample,lipid)}")
+      print(f"{sample.sample_name}\t{lipid.input_name}\t{dataset.get_value(sample,lipid)}")
 
 
 # Find lipids by name. This function will return array of lipid objects where query is found within input_name or standard_name.
 queried_lipids = dataset.find_lipids("query")
 
-# Get quantified values for given lipid name. This function will return an object for lipid values {"sample_id": "lipid_value"} 
+# Get quantified values for given lipid name. This function will return an object for lipid values {"sample_name": "lipid_value"} 
 lipid_name = "lipid name"
 values = dataset.get_values(lipid_name)
 print(f"Values for {lipid_name}: {values}")
@@ -204,7 +204,7 @@ The codebase recently added a number of convenience helpers on the dataset and m
 mean = dataset.mean_value_for_lipids(sample, class_lipids, skip_missing=True)
 ```
 
-- `LipidDataset.get_lipid_values_for_samples(sample_id)`: returns a list of objects describing each lipid's reported value for the given sample, typically in the form `[{"input_name": "orig name", "value": 123.4}, ...]`. Example:
+- `LipidDataset.get_lipid_values_for_samples(sample_name)`: returns a list of objects describing each lipid's reported value for the given sample, typically in the form `[{"input_name": "orig name", "value": 123.4}, ...]`. Example:
 
 ```python
 vals = dataset.get_lipid_values_for_samples('sample_01')

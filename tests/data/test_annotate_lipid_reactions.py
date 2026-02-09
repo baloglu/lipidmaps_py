@@ -11,7 +11,7 @@ class TestAnnotateLipidsWithReactions(unittest.TestCase):
             QuantifiedLipid(input_name="PC(16:0/18:1)", values={"S1": 1.0}, lm_id="LMGP01010001"),
             QuantifiedLipid(input_name="LPC(16:0)", values={"S1": 2.0}, lm_id="LMGP02010001"),
         ]
-        self.samples = [SampleMetadata(sample_id="S1", group="Control")]
+        self.samples = [SampleMetadata(sample_name="S1", group="Control")]
         self.dataset = LipidDataset(samples=self.samples, lipids=self.lipids)
         self.manager = DataManager()
         self.manager.dataset = self.dataset

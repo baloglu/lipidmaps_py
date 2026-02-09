@@ -242,7 +242,7 @@ def main():
 
             # Simple per-sample listing using dataset helper
             st.subheader("Per-sample lipid values")
-            sample_opts = [s.sample_id for s in dataset.samples] if getattr(dataset, 'samples', None) else []
+            sample_opts = [s.sample_name for s in dataset.samples] if getattr(dataset, 'samples', None) else []
             if sample_opts:
                 sample_sel = st.selectbox("Select sample to list lipid values", sample_opts, key="sample_list_select")
                 data = dataset.get_lipid_values_for_samples(sample_sel)
@@ -302,7 +302,7 @@ def main():
                     values = getattr(lipid, "values", {}) or {}
                     if values:
                         try:
-                            sample_order = [s.sample_id for s in dataset.samples]
+                            sample_order = [s.sample_name for s in dataset.samples]
                         except Exception:
                             sample_order = list(values.keys())
 

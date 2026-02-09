@@ -151,15 +151,15 @@ class DataManager(LipidmapsBaseModel):
         name_col = self._resolve_lipid_column(raw_df.fieldnames)
 
         # Determine sample columns
-        sample_ids = self._resolve_sample_columns(raw_df.fieldnames, name_col)
+        sample_names = self._resolve_sample_columns(raw_df.fieldnames, name_col)
         labels = raw_df.labels if hasattr(raw_df, "labels") else []
         # Create sample metadata with group mapping if provided
-        samples_meta = self.extract_sample_metadata(sample_ids, labels=labels)
+        samples_meta = self.extract_sample_metadata(sample_names, labels=labels)
 
         # logger.info(f"column_info: {column_info.get('column_types', {})}")
         # logger.info(f"Empty: {column_info.get('empty_columns', [])}")
         # Extract quantified lipids
-        quantified = self.extract_quantified_lipids(raw_df.rows, name_col, sample_ids, column_info)
+        quantified = self.extract_quantified_lipids(raw_df.rows, name_col, sample_names, column_info)
         self.annotate_lipids_with_refmet(quantified)
 
         dataset = LipidDataset(samples=samples_meta, lipids=quantified, column_info=column_info)
@@ -246,28 +246,28 @@ class DataManager(LipidmapsBaseModel):
         return [col for col in resolved if col and col.strip()]
 
 
-    def extract_sample_metadata(self, sample_ids: List[str], labels: Optional[List[str]]=None) -> List[SampleMetadata]:
+    def extract_sample_metadata(self, sample_names: List[str], labels: Optional[List[str]]=None) -> List[SampleMetadata]:
         """Create SampleMetadata for each sample id.
 
         If group_mapping is provided, uses it to assign groups.
         Otherwise, extracts group from sample ID using pattern matching.
         """
-        # Build reverse mapping: sample_id -> group_name
+        # Build reverse mapping: sample_name -> group_name
         sample_to_group = {}
         if self.group_mapping:
             for group_name, samples in self.group_mapping.items():
-                for sample_id in samples:
-                    sample_to_group[sample_id] = group_name
+                for sample_name in samples:
+                    sample_to_group[sample_name] = group_name
 
-        def extract_group(sample_id: str) -> str:
+        def extract_group(sample_name: str) -> str:
             # First check explicit mapping
-            if sample_id in sample_to_group:
-                return sample_to_group[sample_id]
+            if sample_name in sample_to_group:
+                return sample_to_group[sample_name]
 
             # Fall back to pattern extraction
-            if not sample_id or not sample_id.strip():
+            if not sample_name or not sample_name.strip():
                 return "unknown"
-            match = re.match(r"^(\D+)", sample_id)
+            match = re.match(r"^(\D+)", sample_name)
             if match:
                 group = match.group(1).strip("_")
                 return group if group else "unknown"
@@ -275,19 +275,19 @@ class DataManager(LipidmapsBaseModel):
 
         if labels:
             # Use labels to assign groups if available
-            label_map = {sid: lbl for sid, lbl in zip(sample_ids, labels[1:]) if lbl}
+            label_map = {sid: lbl for sid, lbl in zip(sample_names, labels[1:]) if lbl}
             samples = [
                 SampleMetadata(
-                    sample_id=sid,
+                    sample_name=sid,
                     group=extract_group(sid),
                     label=label_map.get(sid)
                 )
-                for sid in sample_ids
+                for sid in sample_names
             ]
         else:
             samples = [
-                SampleMetadata(sample_id=sid, group=extract_group(sid))
-                for sid in sample_ids
+                SampleMetadata(sample_name=sid, group=extract_group(sid))
+                for sid in sample_names
             ]
         if self.group_mapping:
             logger.info(
@@ -297,9 +297,9 @@ class DataManager(LipidmapsBaseModel):
 
         return samples
 
-    def extract_quantified_lipids(self, rows: List[Dict], name_col: str, sample_ids: List[str], column_info: Optional[Dict[str, Any]] = None) -> List[QuantifiedLipid]:
+    def extract_quantified_lipids(self, rows: List[Dict], name_col: str, sample_names: List[str], column_info: Optional[Dict[str, Any]] = None) -> List[QuantifiedLipid]:
         """Extract QuantifiedLipid objects from CSV rows."""
-        logger.info(f"Extracting quantified lipids using name_col='{name_col}' and {len(sample_ids)} samples")
+        logger.info(f"Extracting quantified lipids using name_col='{name_col}' and {len(sample_names)} samples")
         quantified = []
         skipped_rows = 0
         empty_columns = []
@@ -320,16 +320,16 @@ class DataManager(LipidmapsBaseModel):
 
             values = {}
             skipped_values = 0
-            for sid in sample_ids:
-                if sid in empty_columns or sid in non_numeric_columns:
+            for name in sample_names:
+                if name in empty_columns or name in non_numeric_columns:
                     skipped_values += 1
                     continue
-                raw = (row.get(sid) or "").strip()
+                raw = (row.get(name) or "").strip()
                 if raw == "":
                     skipped_values += 1
                     continue
                 try:
-                    values[sid] = float(raw)
+                    values[name] = float(raw)
                 except ValueError:
                     skipped_values += 1
                     # logger.warning(
@@ -538,7 +538,7 @@ class DataManager(LipidmapsBaseModel):
 
 
         if not molecules:
-            logger.info(f"LMSD output doesn't exist yet; querying LMSD for details of {len(lm_ids)} unique LM IDs")
+            logger.info("LMSD output doesn't exist yet; no molecules provided")
             return 0
 
         mapping: Dict[Optional[str], LMSDResult] = {}
@@ -682,7 +682,7 @@ class DataManager(LipidmapsBaseModel):
             "num_samples": len(dataset.list_samples()),
             "num_lipids": len(dataset.list_lipids()),
             "num_lm_ids": len(dataset.list_lipids_with_lmid()),
-            # "sample_ids": dataset.list_samples() if hasattr(dataset, 'list_samples') else [s.sample_id for s in dataset.samples],
+            # "sample_names": dataset.list_samples() if hasattr(dataset, 'list_samples') else [s.sample_name for s in dataset.samples],
             # "lipid_names": dataset.list_lipids() if hasattr(dataset, 'list_lipids') else [l.input_name for l in dataset.lipids],
             "column_info": getattr(dataset, 'column_info', None),
         }
@@ -758,7 +758,7 @@ class DataManager(LipidmapsBaseModel):
 
         group_stats = {}
         for group_name, samples in groups.items():
-            sample_ids = [s.sample_id for s in samples]
+            sample_names = [s.sample_name for s in samples]
 
             lipid_means = {}
             lipid_stds = {}
@@ -767,7 +767,7 @@ class DataManager(LipidmapsBaseModel):
             for lipid in self.dataset.lipids:
                 # Extract values for this group's samples
                 group_values = [
-                    lipid.values.get(sid) for sid in sample_ids if sid in lipid.values
+                    lipid.values.get(name) for name in sample_names if name in lipid.values
                 ]
 
                 if group_values:

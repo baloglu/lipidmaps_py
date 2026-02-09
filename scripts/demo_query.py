@@ -30,7 +30,7 @@ except Exception as e:
 
 
 def list_samples(dataset) -> List[str]:
-    return [s.sample_id for s in dataset.samples]
+    return [s.sample_name for s in dataset.samples]
 
 
 def list_lipids(dataset) -> List[str]:

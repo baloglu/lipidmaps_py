@@ -9,7 +9,7 @@ from lipidmaps.data.models.refmet import RefMetResult
 
 
 def make_dataset(names):
-    samples = [SampleMetadata(sample_id="S1", group="g1")]
+    samples = [SampleMetadata(sample_name="S1", group="g1")]
     lipids = [QuantifiedLipid(input_name=n, values={"S1": 1.0}) for n in names]
     return LipidDataset(samples=samples, lipids=lipids)
 
