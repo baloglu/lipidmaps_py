@@ -15,6 +15,7 @@ class SampleMetadata(LipidmapsBaseModel):
     sample_name: str
     group: str  # e.g., "Control", "WT"
     label: Optional[str] = None  # e.g., "Fasted", "Fed"
+    values: Optional[Dict[str, float]] = None  # lipid input_name -> value
 
     def mean_value_for_lipids(
         self,

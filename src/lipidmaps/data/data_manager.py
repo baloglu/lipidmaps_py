@@ -67,6 +67,10 @@ class DataManager(LipidmapsBaseModel):
     csv_format: CSVFormat = Field(default=CSVFormat.AUTO)
     has_labels: bool = Field(default=False)
 
+    # use_refmet: bool = Field(default=True, description="Whether to use RefMet for annotation during CSV processing")
+    use_refmet: bool = Field(default=True, description="Whether to use RefMet for annotation during CSV processing")
+    use_headgroups: bool = Field(default=True, description="Whether to use headgroup mapping for filling missing LM IDs")
+
     # User-specified column configuration
     lipid_name_column: Optional[Union[int, str]] = Field(
         default=0,
@@ -156,19 +160,26 @@ class DataManager(LipidmapsBaseModel):
         # Create sample metadata with group mapping if provided
         samples_meta = self.extract_sample_metadata(sample_names, labels=labels)
 
-        # logger.info(f"column_info: {column_info.get('column_types', {})}")
-        # logger.info(f"Empty: {column_info.get('empty_columns', [])}")
         # Extract quantified lipids
         quantified = self.extract_quantified_lipids(raw_df.rows, name_col, sample_names, column_info)
-        self.annotate_lipids_with_refmet(quantified)
+
+        # If refmet is enabled, annotate lipids with refmet results before creating the dataset, so that standardized names and lm_ids are available on the QuantifiedLipid objects within the dataset from the start
+        # Default is true since it provides standardized names and can improve LMSD matching downstream, but can be disabled if users want to skip that step or handle annotation separately
+        if self.use_refmet:
+            self.annotate_lipids_with_refmet(quantified)
 
         dataset = LipidDataset(samples=samples_meta, lipids=quantified, column_info=column_info)
         self.dataset = dataset
         logger.info(
             f"Created LipidDataset: {len(samples_meta)} samples, {len(quantified)} lipids"
         )
+
+        if self.use_headgroups:
+            headgroup_updates = self.dataset.fill_missing_lm_ids_from_headgroups()
+            logger.info(f"Filled missing LM IDs using headgroup mapping: {headgroup_updates} updated")
+
+        # Below we'll fetch lmid details for all lipids with an lm_id and annotate them, which will be used by downstream analysis and reporting
         lm_ids = dataset.list_lm_ids()
-        logger.info(f"LM IDs in dataset: {lm_ids[:5]} (total {len(lm_ids)})")
         molecules = LMSD.get_molecules_by_lm_id(lm_ids)  # Fetch details for first 5 LM IDs as a check
         logger.info(f"LMSD molecules fetched: {molecules[:5] if isinstance(molecules, list) else molecules}")
         self.annotate_lipids_with_lmsd_details(dataset=dataset, molecules=molecules)

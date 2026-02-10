@@ -185,13 +185,15 @@ def main():
         try:
             fp = st.session_state["file_to_use"]
 
-            if validate_data:
-                mgr = DataManager(validate_data=True)
-                dataset = mgr.process_csv(fp)
-            else:
-                from lipidmaps import process_csv
-                dataset = process_csv(fp)
+            # if validate_data:
+            #     mgr = DataManager(validate_data=True)
+            #     dataset = mgr.process_csv(fp)
+            # else:
+            #     from lipidmaps import process_csv
+            #     dataset = process_csv(fp)
 
+            from lipidmaps import process_csv
+            dataset = process_csv(fp, validate_data=validate_data, use_refmet=True, use_headgroups=True)
             st.session_state["dataset"] = dataset
             st.session_state["processed"] = True
             st.session_state["reactions"] = []  # clear old reactions
