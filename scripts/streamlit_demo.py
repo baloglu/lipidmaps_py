@@ -303,7 +303,14 @@ def main():
                                 sample_order = list(vals.keys())
                             rows = [{"sample": sid, "value": vals[sid]} for sid in sample_order if sid in vals]
                             df_vals = pd.DataFrame(rows)
-                            fig = px.bar(df_vals, x="sample", y="value", title=f"Quantitation for {lipid.input_name}")
+                            fig = px.bar(
+                                df_vals,
+                                x="sample",
+                                y="value",
+                                title=f"Quantitation for {lipid.input_name}",
+                                color="sample",
+                                color_discrete_sequence=px.colors.qualitative.Plotly,
+                            )
                             search_container.plotly_chart(fig, use_container_width=True, key="search_selected_lipid_chart")
 
                     # show suggested Query code for reproducing the search
@@ -333,12 +340,19 @@ def main():
                 except Exception:
                     df_vals = pd.DataFrame(data)
 
-                if df_vals.empty:
-                    st.info(f"No lipid values for sample {sample_sel}.")
-                else:
-                    fig = px.bar(df_vals, x="input_name", y="value", title=f"Lipid values for sample {sample_sel}")
-                    fig.update_layout(xaxis_title="Lipid", yaxis_title="Value", xaxis_tickangle=-45)
-                    st.plotly_chart(fig, use_container_width=True, key="sample_lipid_bar_chart")
+                    if df_vals.empty:
+                        st.info(f"No lipid values for sample {sample_sel}.")
+                    else:
+                        fig = px.bar(
+                            df_vals,
+                            x="input_name",
+                            y="value",
+                            title=f"Lipid values for sample {sample_sel}",
+                            color="input_name",
+                            color_discrete_sequence=px.colors.qualitative.Plotly,
+                        )
+                        fig.update_layout(xaxis_title="Lipid", yaxis_title="Value", xaxis_tickangle=-45)
+                        st.plotly_chart(fig, use_container_width=True, key="sample_lipid_bar_chart")
             else:
                 st.info("No samples available in dataset.")
 
@@ -357,10 +371,17 @@ def main():
                         continue
                     mean_val = dataset.mean_value_for_lipids(sample_sel, class_lipids, skip_missing=True)
                     class_rows.append({"main_class": mc, "mean_value": mean_val})
-
+                # After collecting mean values per class, render a single chart
                 if class_rows:
                     df_class = pd.DataFrame(class_rows).sort_values(by="mean_value", ascending=False)
-                    fig = px.bar(df_class, x="main_class", y="mean_value", title=f"Mean per main class for sample {sample_sel}")
+                    fig = px.bar(
+                        df_class,
+                        x="main_class",
+                        y="mean_value",
+                        title=f"Mean per main class for sample {sample_sel}",
+                        color="main_class",
+                        color_discrete_sequence=px.colors.qualitative.Set2,
+                    )
                     fig.update_layout(xaxis_title="Main class", yaxis_title="Mean value", xaxis_tickangle=-45)
                     st.plotly_chart(fig, use_container_width=True, key="mean_value_per_main_class")
                 else:
@@ -395,7 +416,14 @@ def main():
                             rows = [{"sample": k, "value": v} for k, v in values.items()]
 
                         df_vals = pd.DataFrame(rows)
-                        fig = px.bar(df_vals, x="sample", y="value", title=f"Quantitation for {lipid.input_name}")
+                        fig = px.bar(
+                            df_vals,
+                            x="sample",
+                            y="value",
+                            title=f"Quantitation for {lipid.input_name}",
+                            color="sample",
+                            color_discrete_sequence=px.colors.sequential.Viridis,
+                        )
                         fig.update_layout(xaxis_title="Sample", yaxis_title="Value")
                         st.plotly_chart(fig, use_container_width=True, key="sample_lipid_bar_chart_2")
                     else:
@@ -420,16 +448,24 @@ def main():
                 lm_counts = df_proc["lm_id"].notna().value_counts()
                 if len(lm_counts) > 0:
                     st.subheader("LM ID Found Distribution")
+                    labels = ["LM ID Found" if x else "Not Found" for x in lm_counts.index]
                     fig = px.pie(values=lm_counts.values,
-                                names=["LM ID Found" if x else "Not Found" for x in lm_counts.index])
+                                names=labels,
+                                color=labels,
+                                color_discrete_map={"LM ID Found": "#4caf50", "Not Found": "#ffb3b3"})
                     st.plotly_chart(fig, use_container_width=True, key="lm_id_found_distribution")
             # Generic LMID
             if "generic_lm_id" in df_proc:
                 gen_counts = df_proc["generic_lm_id"].notna().value_counts()
                 if len(gen_counts) > 0:
                     st.subheader("Generic LM ID Found Distribution")
+                    labels = ["Found" if x else "Not Found" for x in gen_counts.index]
+                    # Use green for found, red for not found
+                    color_map = {"Found": "#4caf50", "Not Found": "#ffb3b3"}
                     fig = px.pie(values=gen_counts.values,
-                                names=["Found" if x else "Not Found" for x in gen_counts.index])
+                                names=labels,
+                                color=labels,
+                                color_discrete_map=color_map)
                     st.plotly_chart(fig, use_container_width=True, key="generic_lm_id_found_distribution")
 
             # Neither LMID nor Generic LMID
@@ -438,9 +474,12 @@ def main():
                 neither_counts = neither.value_counts()
                 if len(neither_counts) > 0:
                     st.subheader("Neither LM ID nor Generic LM ID Found")
+                    labels = ["Neither Found" if x else "At Least One Found" for x in neither_counts.index]
+                    color_map = {"Neither Found": "#ffb3b3", "At Least One Found": "#4caf50"}
                     fig = px.pie(values=neither_counts.values,
-                                names=["Neither Found" if x else "At Least One Found"
-                                        for x in neither_counts.index])
+                                names=labels,
+                                color=labels,
+                                color_discrete_map=color_map)
                     st.plotly_chart(fig, use_container_width=True, key="neither_lm_id_found_distribution")
 
 
