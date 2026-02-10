@@ -47,7 +47,6 @@ def main():
     processed = False
     generic_lm_id_button = False
     fetch_reactions_button = False
-    validate_data = False
 
     with st.sidebar:
         st.title("LIPID MAPS API")
@@ -204,19 +203,12 @@ def main():
         try:
             fp = st.session_state["file_to_use"]
 
-            # if validate_data:
-            #     mgr = DataManager(validate_data=True)
-            #     dataset = mgr.process_csv(fp)
-            # else:
-            #     from lipidmaps import process_csv
-            #     dataset = process_csv(fp)
-
             from lipidmaps import process_csv
             dataset = process_csv(fp, validate_data=validate_data, use_refmet=use_refmet, use_headgroups=use_headgroups)
             st.session_state["dataset"] = dataset
             st.session_state["processed"] = True
             st.session_state["reactions"] = []  # clear old reactions
-
+            st.write(f"validate_data: {validate_data}")
             # Validation report handling
             if validate_data and getattr(dataset, "validation_report", None):
                 vr = dataset.validation_report
@@ -699,7 +691,7 @@ def main():
             st.subheader("Validation Report")
             st.write(f"Passed: {st.session_state['validation_passed']}")
 
-            issues = getattr(st.session_state["dataset"], "validation_issues", [])
+            issues = getattr(st.session_state, "validation_issues", [])
             st.write(f"Issues: {len(issues)}")
 
             show_all = st.checkbox("Show all issues", key="show_all_issues")

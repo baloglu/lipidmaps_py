@@ -160,7 +160,6 @@ class ReactionChecker(LipidmapsBaseModel):
             # Parse raw data into ReactionData objects
             reactions = []
             for raw_reaction in raw_data:
-                print(raw_reaction["proteins"])
                 try:
                     # Parse reactants and products
                     reactants = [
