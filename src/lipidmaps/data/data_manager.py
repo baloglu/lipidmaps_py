@@ -12,7 +12,7 @@ from .models.sample import SampleMetadata, QuantifiedLipid, LipidDataset
 from .models.refmet import RefMet
 from .models.lmsd import LMSD, LMSDResult
 # from .reaction_checker import ReactionChecker, ReactionData
-from .models.reaction import ReactionChecker, ReactionData
+from .models.reaction import ReactionData
 
 # import new ingestion and validation modules
 from .ingestion.csv_reader import CSVIngestion, CSVFormat
@@ -70,7 +70,8 @@ class DataManager(LipidmapsBaseModel):
     # use_refmet: bool = Field(default=True, description="Whether to use RefMet for annotation during CSV processing")
     use_refmet: bool = Field(default=True, description="Whether to use RefMet for annotation during CSV processing")
     use_headgroups: bool = Field(default=True, description="Whether to use headgroup mapping for filling missing LM IDs")
-
+    fetch_reactions: bool = Field(default=True, description="Whether to fetch reactions by LM ID after processing CSV")
+    
     # User-specified column configuration
     lipid_name_column: Optional[Union[int, str]] = Field(
         default=0,
@@ -133,18 +134,6 @@ class DataManager(LipidmapsBaseModel):
             f"CSV ingested: {raw_df.row_count} rows x {raw_df.column_count} columns."
         )
 
-        # Validate data if requested
-        if self.validate_data:
-            validator = DataValidator()
-            self.validation_report = validator.validate(raw_df)
-
-            if not self.validation_report.passed:
-                logger.warning(
-                    f"Validation found {len(self.validation_report.issues)} issues"
-                )
-                # Optionally print report
-                # self.validation_report.print_report()
-
         # Process the raw data
         if raw_df.is_empty():
             ds = LipidDataset(samples=[], lipids=[])
@@ -177,6 +166,25 @@ class DataManager(LipidmapsBaseModel):
         if self.use_headgroups:
             headgroup_updates = self.dataset.fill_missing_lm_ids_from_headgroups()
             logger.info(f"Filled missing LM IDs using headgroup mapping: {headgroup_updates} updated")
+
+        if self.fetch_reactions:
+            reaction_updates = self.dataset.fetch_reactions_by_lm_id()
+            try:
+                count = len(reaction_updates) if reaction_updates is not None else 0
+            except Exception:
+                count = 0
+            logger.info(f"Fetched reactions for lipids: {count} reactions")
+
+        if self.validate_data:
+            validator = DataValidator()
+            self.validation_report = validator.validate(raw_df)
+            
+            if not self.validation_report.passed:
+                logger.warning(
+                    f"Validation found {len(self.validation_report.issues)} issues"
+                )
+            # After processing, attach the validation report to the dataset for downstream use
+            self.dataset.validation_report = self.validation_report
 
         # Below we'll fetch lmid details for all lipids with an lm_id and annotate them, which will be used by downstream analysis and reporting
         lm_ids = dataset.list_lm_ids()
@@ -584,39 +592,8 @@ class DataManager(LipidmapsBaseModel):
         logger.info(f"Annotated {updated} lipids with LMSD details")
         return updated
 
-    def fetch_reactions_for_lm_ids(self, dataset: Optional[Any] = None, reaction_type: Optional[str] = None, only_lipid_components: bool = True) -> List[Any]:
-        """
-        Fetch Reaction objects for the given list of LM IDs using the ReactionChecker API.
-        Args:
-            lm_ids: List of LM IDs to fetch reactions for.
-        Returns:
-            List of Reaction objects retrieved from the API.
-        """
-        if dataset is None:
-            dataset = self.dataset
-        if dataset is None or not hasattr(dataset, "lipids"):
-            logger.warning("No dataset or lipids to fetch reactions for.")
-            return []
-        lm_ids = [lipid.lm_id for lipid in dataset.lipids if lipid.lm_id]
-        generic_lm_ids = [lipid.generic_lm_id for lipid in dataset.lipids if lipid.generic_lm_id]
-        # Get unique lm_ids from both lists
-        lm_ids = list(set(lm_ids).union(set(generic_lm_ids)))
-
-        if not lm_ids:
-            logger.info("No LM IDs provided for reaction fetching.")
-            return []
-
-        try:
-            checker = ReactionChecker(base_url="https://dev.lipidmaps.org")
-            response = checker.check_reactions(lm_ids = lm_ids, generic_reactions=False, reaction_type="class-level" if reaction_type is None else reaction_type, only_lipid_components=only_lipid_components)
-            logger.info(f"Retrieved {len(response.reactions)} reactions for {len(lm_ids)} LM IDs\n")
-            # print(response.reactions)
-            return response.reactions
-        except Exception:
-            logger.exception("Failed to fetch reactions from ReactionChecker API.")
-            return []
-        
-
+    # Reaction fetching has been moved to `LipidDataset.fetch_reactions_by_lm_id()`
+    # to keep dataset-level operations within the dataset object.
     def annotate_lipids_with_reactions(self, dataset: LipidDataset, reactions: Optional[list[ReactionData]] = None) -> None:
         """
         For each QuantifiedLipid in the dataset, find all reactions where the lipid's lm_id or generic_lm_id is a reactant or product (compound_lm_id),
@@ -690,11 +667,11 @@ class DataManager(LipidmapsBaseModel):
         Includes: number of samples, number of lipids, sample IDs, lipid names, and column info.
         """
         summary = {
-            "num_samples": len(dataset.list_samples()),
-            "num_lipids": len(dataset.list_lipids()),
+            "num_samples": len(dataset.list_sample_names()),
+            "num_lipids": len(dataset.list_lipid_names()),
             "num_lm_ids": len(dataset.list_lipids_with_lmid()),
-            # "sample_names": dataset.list_samples() if hasattr(dataset, 'list_samples') else [s.sample_name for s in dataset.samples],
-            # "lipid_names": dataset.list_lipids() if hasattr(dataset, 'list_lipids') else [l.input_name for l in dataset.lipids],
+            # "sample_names": dataset.list_sample_names() if hasattr(dataset, 'list_sample_names') else [s.sample_name for s in dataset.samples],
+            # "lipid_names": dataset.list_lipid_names() if hasattr(dataset, 'list_lipid_names') else [l.input_name for l in dataset.lipids],
             "column_info": getattr(dataset, 'column_info', None),
         }
 

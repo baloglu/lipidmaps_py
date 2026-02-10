@@ -1,12 +1,16 @@
 
 import logging
-from typing import Any, List, Dict, Optional, Union
+from typing import Any, List, Dict, Optional, Union, Callable
 import numpy as np
 import re
 from ..utils.headgroups import lipidmaps_headgroups
+from .query import Query, from_callable, attr_eq, attr_in, attr_contains, attr_gt, has_attr
 from .base import LipidmapsBaseModel
 from pydantic import Field
-from .reaction import ReactionData, CompoundComponent
+from .reaction import ReactionData, CompoundComponent, ReactionChecker
+from ...config import LMSD_REACTIONS_BASE_URL
+from ..validation.data_validator import DataValidator, ValidationReport
+
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +19,15 @@ class SampleMetadata(LipidmapsBaseModel):
     sample_name: str
     group: str  # e.g., "Control", "WT"
     label: Optional[str] = None  # e.g., "Fasted", "Fed"
-    values: Optional[Dict[str, float]] = None  # lipid input_name -> value
+    values: Optional[Dict[str, float]] = None  # lipid input_name -> value (optional cache)
+
+    def get_value_for_lipid(self, lipid: "QuantifiedLipid") -> Optional[float]:
+        """
+        Retrieve the quantitation value for a given lipid.
+        Reads directly from the lipid's values dict (no data duplication).
+        Returns None if not found.
+        """
+        return lipid.values.get(self.sample_name)
 
     def mean_value_for_lipids(
         self,
@@ -86,11 +98,12 @@ class LipidDataset(LipidmapsBaseModel):
     lipids: List[QuantifiedLipid]
     column_info: Optional[Dict[str, Any]] = None  # Metadata about CSV columns
     reactions: List[ReactionData] = Field(default_factory=list)  # All reactions in dataset
+    validation_report: Optional[ValidationReport] = Field(default=None)
 
-    def list_samples(self) -> List[str]:
+    def list_sample_names(self) -> List[str]:
         return [s.sample_name for s in self.samples]
 
-    def list_lipids(self) -> List[str]:
+    def list_lipid_names(self) -> List[str]:
         return [l.input_name for l in self.lipids]
     
     def list_reactions(self) -> Optional[List[str]]:
@@ -115,6 +128,108 @@ class LipidDataset(LipidmapsBaseModel):
     
     def get_lipids_with_reactions(self) -> List[QuantifiedLipid]:
         return [l for l in self.lipids if l.reactions is not None and len(l.reactions) > 0]
+
+    def query_lipids(self, *preds: Union[Query, Callable[["QuantifiedLipid"], bool]], combine: str = "and") -> List[QuantifiedLipid]:
+        """
+        Query lipids using one or more predicates. Predicates may be `Query` objects
+        or plain callables that accept a `QuantifiedLipid` and return truthy/falsy.
+
+        combine: "and" (default) or "or" - how to combine multiple predicates.
+        """
+        if not preds:
+            return list(self.lipids)
+
+        qobjs: List[Query] = []
+        for p in preds:
+            if isinstance(p, Query):
+                qobjs.append(p)
+            elif callable(p):
+                qobjs.append(from_callable(p))
+            else:
+                raise TypeError("Predicates must be Query or callable")
+
+        combined = qobjs[0]
+        for q in qobjs[1:]:
+            combined = combined & q if combine == "and" else combined | q
+
+        return [l for l in self.lipids if combined.matches(l)]
+
+    def fetch_reactions_by_lm_id(self, reaction_type: Optional[str] = None, only_lipid_components: bool = True) -> List[ReactionData]:
+        """
+        Fetch reactions for LM IDs present in this dataset using the ReactionChecker API.
+        Attaches the fetched reactions to `self.reactions` and annotates lipids in-place.
+
+        Returns the list of fetched ReactionData objects (may be empty).
+        """
+        lm_ids = [lipid.lm_id for lipid in self.lipids if lipid.lm_id]
+        generic_lm_ids = [lipid.generic_lm_id for lipid in self.lipids if lipid.generic_lm_id]
+        lm_ids = list(set(lm_ids).union(set(generic_lm_ids)))
+
+        if not lm_ids:
+            logger.info("No LM IDs provided for reaction fetching.")
+            self.reactions = []
+            return []
+
+        try:
+            checker = ReactionChecker(base_url=LMSD_REACTIONS_BASE_URL)
+            response = checker.check_reactions(
+                lm_ids=lm_ids,
+                generic_reactions=False,
+                reaction_type=("class-level" if reaction_type is None else reaction_type),
+                only_lipid_components=only_lipid_components,
+            )
+            reactions = getattr(response, "reactions", []) or []
+
+            # Deduplicate reactions by id and assign to dataset
+            reaction_dict = {}
+            for reaction in reactions:
+                rid = getattr(reaction, "reaction_id", None) or getattr(reaction, "id", None)
+                if rid is None:
+                    continue
+                rid = str(rid)
+                if rid not in reaction_dict:
+                    reaction_dict[rid] = reaction
+
+            self.reactions = list(reaction_dict.values())
+
+            # Annotate lipids with matching reactions
+            for lipid in self.lipids:
+                lipid_ids = set()
+                if getattr(lipid, "lm_id", None):
+                    lipid_ids.add(lipid.lm_id)
+                if getattr(lipid, "generic_lm_id", None):
+                    lipid_ids.add(lipid.generic_lm_id)
+
+                matched_ids = set()
+                matched_reactions = []
+                for reaction in self.reactions:
+                    for role in ["reactants", "products"]:
+                        items = getattr(reaction, role, [])
+                        for item in items:
+                            compound_lm_id = None
+                            if isinstance(item, dict):
+                                compound_lm_id = item.get("compound_lm_id")
+                            elif hasattr(item, "compound_lm_id"):
+                                compound_lm_id = getattr(item, "compound_lm_id", None)
+                            if compound_lm_id and compound_lm_id in lipid_ids:
+                                rid = getattr(reaction, "reaction_id", None) or getattr(reaction, "id", None)
+                                if rid is not None:
+                                    rid = str(rid)
+                                    if rid not in matched_ids:
+                                        matched_reactions.append(reaction)
+                                        matched_ids.add(rid)
+                                break
+                        else:
+                            continue
+                        break
+
+                lipid.reactions = matched_reactions if matched_reactions else None
+
+            return self.reactions
+        except Exception:
+            logger.exception("Failed to fetch reactions from ReactionChecker API.")
+            self.reactions = []
+            return []
 
     def get_lipids_for_component(self, component: CompoundComponent) -> List[QuantifiedLipid]:
         """
@@ -145,7 +260,9 @@ class LipidDataset(LipidmapsBaseModel):
            Generic LM_ID string if a headgroup match is found, otherwise None.
         """
         headgroup = None
-        if " O-" in name or " P-" in name:
+        if name.lower().startswith("fa ") or name.lower().startswith("fa("):
+            headgroup = "FA"
+        elif " O-" in name or " P-" in name:
             dash_index = name.index("-")
             headgroup = name[:dash_index+1]
         else:
@@ -170,8 +287,8 @@ class LipidDataset(LipidmapsBaseModel):
                 generic_lm_id = None
                 if lipid.standardized_name:
                     generic_lm_id = self._find_generic_lm_id_from_headgroup(lipid.standardized_name)
-                # if not generic_lm_id and lipid.input_name:
-                #     generic_lm_id = self._find_generic_lm_id_from_headgroup(lipid.input_name)
+                if not generic_lm_id and (lipid.input_name.lower().startswith("fa ") or lipid.input_name.lower().startswith("fa(")):
+                    generic_lm_id = self._find_generic_lm_id_from_headgroup(lipid.input_name)
                 if generic_lm_id:
                     lipid.generic_lm_id = generic_lm_id
                     lipid.lm_id_found_by = "headgroup"

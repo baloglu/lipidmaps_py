@@ -132,11 +132,11 @@ print(dataset.samples[:1])
 # lipids - the list of QuantifiedLipid type objects with input_name, standardized_name, lm_id, recognized and values object "sample_name": "value"
 print(dataset.lipids[:1]) 
 
-# List first 5 samples 
-print(f"Samples: {dataset.list_samples()[:5]}")
+# List first 5 sample names 
+print(f"Samples: {dataset.list_sample_names()[:5]}")
 
-# List first 5 lipids
-print(f"Lipids: {dataset.list_lipids()[:5]}")
+# List first 5 lipid names
+print(f"Lipids: {dataset.list_lipid_names()[:5]}")
 
 # Update LIPID MAPS ids by headgroups
 # fill_missing_lm_ids_from_headgroups(dataset) will assign headgroup LIPID MAPS ids to lipids as generic lm_id and return the updated count.
@@ -171,14 +171,12 @@ from lipidmaps.data.data_manager import DataManager
 manager = DataManager()
 # LIPID MAPS reactions response includes lipids and non lipids for reactant and products. It can also return generic reactions for the lipid.
  
-reactions = manager.fetch_reactions_for_lm_ids(dataset = dataset, generic_reactions=True, only_lipid_components=False)
+reactions = dataset.fetch_reactions_by_lm_id(reaction_type="class-level", only_lipid_components=False)
 
-# Response is a list of ReactionData objects that includes reaction_id, proteins, genes, curations, reactants and products. 
+# Response is a list of `ReactionData` objects that includes `reaction_id`, `proteins`, `genes`, `curations`, `reactants` and `products`.
 
-# annotate dataset with reactions (optional)
-# You can annotate your dataset with reaction response.
-# This function will add reactions to LipidDataset class and update each input data
-manager.annotate_lipids_with_reactions(dataset, reactions)
+# The `fetch_reactions_by_lm_id` method attaches the reactions to the `LipidDataset` and
+# annotates matching lipids in-place, so a separate annotate step is not required.
 ```
 
 ## Streamlit demo
@@ -217,6 +215,23 @@ vals = dataset.get_lipid_values_for_samples('sample_01')
 - `QuantifiedLipid.get_value_for_sample(sample_or_id)`: convenience on the lipid object to fetch a single sample's value from the lipid's internal `values` mapping.
 
 These helpers are used by `scripts/streamlit_demo.py` to build per-sample and per-lipid views, compute mean values by class, and annotate reactions. 
+
+- `LipidDataset.query_lipids(*preds, combine='and')`: composable query API for filtering lipids. Predicates may be
+   `Query` objects from `lipidmaps.data.models.query` or plain callables that accept a `QuantifiedLipid`.
+
+Example:
+```python
+from lipidmaps.data.models.query import attr_eq, attr_contains
+
+# find cardiolipins or any lipid with "cardiolipin" in the input name
+q = attr_eq('main_class', 'Cardiolipins') | attr_contains('input_name', 'cardiolipin')
+results = dataset.query_lipids(q, combine='or')
+print(len(results))
+
+# combine a Query with a callable to filter by a sample value
+q2 = attr_eq('main_class', 'Cardiolipins') & (lambda l: l.values.get('Sample1', 0) > 100)
+results2 = dataset.query_lipids(q2)
+```
 ## Example Datasets
 
 Sample datasets are available in `tests/data/inputs/`:

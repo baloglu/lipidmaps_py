@@ -113,7 +113,7 @@ def main() -> None:
     # Dataset is now ready; perform reaction fetching/annotation and display selected lipids
     logger.info(f"Dataset ready: {len(dataset.samples)} samples, {len(dataset.lipids)} lipids")
     logger.info(f"Sample column info: {dataset.samples[:3]}")
-    logger.info(f"Samples: {dataset.list_samples()[:3]}")
+    logger.info(f"Samples: {dataset.list_sample_names()[:3]}")
 
     lmids = dataset.list_lm_ids()
     print(f"LM IDs in dataset: {LMSD.get_molecules_by_lm_id(lmids)}")  # Print first 5 LM IDs
@@ -135,10 +135,9 @@ def main() -> None:
             f"{group_name} -> {stats['sample_count']} samples, {stats['lipid_coverage']} lipids"
         )
 
-    # Fetch reactions for all LM IDs in the dataset 
-    reactions = manager.fetch_reactions_for_lm_ids(dataset, reaction_type="class-level")
+    # Fetch reactions for all LM IDs in the dataset
+    reactions = dataset.fetch_reactions_by_lm_id(reaction_type="class-level")
     print(reactions[:1])  # Print first 1 reaction for brevity
-    manager.annotate_lipids_with_reactions(dataset, reactions)
     logger.info(f"Lipids with reactions: {dataset.list_lipids_with_reactions()[:1]}")
     
     lipid_objects_with_reactions = dataset.get_lipids_with_reactions()

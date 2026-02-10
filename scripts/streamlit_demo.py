@@ -53,7 +53,7 @@ def main():
         st.title("LIPID MAPS API")
 
         # ---- FILE selection ----
-        with st.expander("File", expanded=True):
+        with st.expander("File", expanded=not bool(st.session_state["processed"])):
             test_data_dir = os.path.abspath(os.path.join(dir_path, '../tests/data/inputs/demo'))
             try:
                 test_files = [f for f in os.listdir(test_data_dir)
@@ -73,9 +73,11 @@ def main():
                     tmp.write(uploaded_file.read())
                     file_to_use = tmp.name
                     file_name = uploaded_file.name
+                selected_file = "(none)"
             elif selected_file != "(none)":
                 file_to_use = os.path.join(test_data_dir, selected_file)
                 file_name = selected_file
+                uploaded_file = None
             
             prev_file_name = st.session_state.get("_last_file_used")
             st.session_state["file_to_use"] = file_to_use
@@ -111,15 +113,32 @@ def main():
         # ---- OPTIONS ----
         with st.expander("Options", expanded=True):
             file_chosen = bool(st.session_state["file_to_use"])
-            verification = st.selectbox(
-                "Data Verification",
-                ["With Verification", "Without Verification"],
-                index=0,
+            use_verification = st.checkbox(
+                "Use Verification",
+                value=True,
                 disabled=not file_chosen,
             )
-            validate_data = (verification == "With Verification") if file_chosen else False
+            validate_data = use_verification if file_chosen else False
 
-            processed = st.button("Standardize with Refmet", disabled=not file_chosen)
+            use_refmet = st.checkbox(
+                "Use Refmet",
+                value=True,
+                disabled=not file_chosen,
+            )
+
+            use_headgroups = st.checkbox(
+                "Assign Generic LMIDs from headgroups",
+                value=True,
+                disabled=not file_chosen,
+            )
+
+            fetch_reactions = st.checkbox(
+                "Fetch reactions by LM ID",
+                value=True,
+                disabled=not file_chosen,
+            )
+
+            processed = st.button("Process Data", disabled=not file_chosen)
             if st.session_state["processed"] and file_chosen:
                 st.badge("Success! Please use the Processed tab to view results", icon=":material/check:", color="green")
 
@@ -128,12 +147,12 @@ def main():
             processed_flag = bool(st.session_state["processed"])
 
             generic_lm_id_button = st.button("Assign Generic LMIDs",
-                                            disabled=not processed_flag)
+                                            disabled=(not processed_flag or use_headgroups))
             if st.session_state["generic_lm_id_assigned"]:
                 st.badge("Generic LMIDs assigned", icon=":material/check:", color="green")
 
             fetch_reactions_button = st.button("Fetch reactions by LM ID",
-                                            disabled=not processed_flag)
+                                            disabled=(not processed_flag or fetch_reactions))
             if st.session_state["reactions_fetched"]:
                 st.badge("Reactions fetched", icon=":material/check:", color="green")
 
@@ -174,7 +193,7 @@ def main():
                         df = pd.read_csv(fp, skiprows=[1])
 
                 st.write(f"Rows: {df.shape[0]}, Columns: {df.shape[1]}")
-                st.dataframe(df)
+                st.dataframe(df, hide_index=True)
             except Exception as e:
                 st.error(f"Error reading file: {e}")
 
@@ -193,13 +212,14 @@ def main():
             #     dataset = process_csv(fp)
 
             from lipidmaps import process_csv
-            dataset = process_csv(fp, validate_data=validate_data, use_refmet=True, use_headgroups=True)
+            dataset = process_csv(fp, validate_data=validate_data, use_refmet=use_refmet, use_headgroups=use_headgroups)
             st.session_state["dataset"] = dataset
             st.session_state["processed"] = True
             st.session_state["reactions"] = []  # clear old reactions
 
-            if validate_data and getattr(mgr, "validation_report", None):
-                vr = mgr.validation_report
+            # Validation report handling
+            if validate_data and getattr(dataset, "validation_report", None):
+                vr = dataset.validation_report
                 st.session_state["validation_passed"] = vr.passed
                 st.session_state["validation_issues"] = vr.issues or []
                 st.session_state["has_validation_report"] = True
@@ -217,11 +237,11 @@ def main():
     # --------------------------------------------------------------
     with tabs[tab_index["processed"]]:
         dataset = st.session_state.get("dataset")
-
+        processed_table_container = st.container(border=True)
         if not dataset:
-            st.info("No processed dataset yet.")
+            processed_table_container.info("No processed dataset yet.")
         else:
-            st.subheader("Processed Lipid Annotations")
+            processed_table_container.subheader("Processed Lipid Annotations")
 
             # Build DataFrame and keep mapping to lipid objects
             lipid_rows = []
@@ -238,13 +258,72 @@ def main():
                 })
             df_proc = pd.DataFrame(lipid_rows)
 
-            st.write(f"Rows: {df_proc.shape[0]}, Columns: {df_proc.shape[1]}")
+            processed_table_container.write(f"Rows: {df_proc.shape[0]}, Columns: {df_proc.shape[1]}")
             # Show the table (read-only) and provide a selection control underneath.
-            st.dataframe(df_proc)
+            processed_table_container.dataframe(df_proc, hide_index=True)
+
+            search_container = st.container(border=True)  # reset container for additional content below the table
+            # ---- Search field for quick query testing ----
+            search_container.subheader("Search / Quick Query")
+            search_q = search_container.text_input("Search lipids (name, standardized, LMID, class)", key="processed_search_query")
+            if search_q:
+                q = search_q.lower()
+                mask = (
+                    df_proc["input_name"].fillna("").str.lower().str.contains(q)
+                    | df_proc["standardized_name"].fillna("").str.lower().str.contains(q)
+                    | df_proc["lm_id"].fillna("").astype(str).str.lower().str.contains(q)
+                    | df_proc["generic_lm_id"].fillna("").astype(str).str.lower().str.contains(q)
+                    | df_proc["main_class"].fillna("").str.lower().str.contains(q)
+                    | df_proc["sub_class"].fillna("").str.lower().str.contains(q)
+                )
+                df_matches = df_proc[mask]
+                search_container.write(f"Matches: {df_matches.shape[0]}")
+                if df_matches.empty:
+                    search_container.info("No matches found for your query.")
+                else:
+                    search_container.dataframe(df_matches, hide_index=True)
+
+                    # allow quick selection of one of the matches
+                    opts = [f"{r['index']}: {r['input_name']}" for _, r in df_matches.iterrows()]
+                    sel = search_container.selectbox("Select matched lipid to inspect", opts, key="search_match_select")
+                    try:
+                        sel_idx = int(sel.split(":", 1)[0])
+                    except Exception:
+                        sel_idx = None
+                    if sel_idx is not None:
+                        st.session_state["selected_lipid_idx"] = sel_idx
+                        lipid = dataset.lipids[sel_idx]
+                        search_container.markdown(f"**Selected:** {lipid.input_name} — LMID: {getattr(lipid, 'lm_id', None)}")
+                        # Show simple per-sample bar chart for the selected lipid
+                        vals = getattr(lipid, "values", {}) or {}
+                        if vals:
+                            try:
+                                sample_order = dataset.sample_names
+                            except Exception:
+                                sample_order = list(vals.keys())
+                            rows = [{"sample": sid, "value": vals[sid]} for sid in sample_order if sid in vals]
+                            df_vals = pd.DataFrame(rows)
+                            fig = px.bar(df_vals, x="sample", y="value", title=f"Quantitation for {lipid.input_name}")
+                            search_container.plotly_chart(fig, use_container_width=True, key="search_selected_lipid_chart")
+
+                    # show suggested Query code for reproducing the search
+                    try:
+                        from lipidmaps.data.models.query import attr_contains
+                        q_code = " | ".join([
+                            "attr_contains('input_name', '%s')" % search_q,
+                            "attr_contains('standardized_name', '%s')" % search_q,
+                            "attr_contains('lm_id', '%s')" % search_q,
+                            "attr_contains('generic_lm_id', '%s')" % search_q,
+                            "attr_contains('main_class', '%s')" % search_q,
+                            "attr_contains('sub_class', '%s')" % search_q,
+                        ])
+                        search_container.code(f"# Equivalent dataset Query\nq = {q_code}\nresults = dataset.query_lipids(q, combine='or')\nlen(results)", language="python")
+                    except Exception:
+                        pass
 
             # Simple per-sample listing using dataset helper
             st.subheader("Per-sample lipid values")
-            sample_opts = [s.sample_name for s in dataset.samples] if getattr(dataset, 'samples', None) else []
+            sample_opts = dataset.list_sample_names() if getattr(dataset, 'samples', None) else []
             if sample_opts:
                 sample_sel = st.selectbox("Select sample to list lipid values", sample_opts, key="sample_list_select")
                 data = dataset.get_lipid_values_for_samples(sample_sel)
@@ -304,7 +383,7 @@ def main():
                     values = getattr(lipid, "values", {}) or {}
                     if values:
                         try:
-                            sample_order = [s.sample_name for s in dataset.samples]
+                            sample_order = dataset.sample_names
                         except Exception:
                             sample_order = list(values.keys())
 
@@ -323,6 +402,8 @@ def main():
                         st.info("No quantitation values available for this lipid.")
             else:
                 st.info("No lipids available to select.")
+
+            # Note: Query examples are shown in the README; see README.md for usage of dataset.query_lipids
 
             # ---- Pie Charts ----
 
@@ -377,15 +458,13 @@ def main():
     # --------------------------------------------------------------
     # REACTIONS TAB
     # --------------------------------------------------------------
+
     if fetch_reactions_button and st.session_state["dataset"] is not None:
         ds = st.session_state["dataset"]
-        mgr = DataManager()
 
         try:
-            reactions = mgr.fetch_reactions_for_lm_ids(ds, reaction_type="species-level", only_lipid_components=False)
+            reactions = ds.fetch_reactions_by_lm_id(reaction_type="species-level", only_lipid_components=False)
             st.session_state["reactions"] = reactions
-            # annotate dataset with reactions (optional)
-            mgr.annotate_lipids_with_reactions(ds, reactions)
 
             st.success(f"Fetched {len(reactions)} reactions.")
             st.session_state["reactions_fetched"] = True
@@ -395,12 +474,12 @@ def main():
 
     with tabs[tab_index["reactions"]]:
         st.subheader("Reactions for LM IDs")
-        if not st.session_state["reactions"]:
+        if not getattr(st.session_state["dataset"], "reactions", None):
             st.info("No reactions fetched yet. Use Tools → Fetch reactions by LM ID.")
         else:
             # Build reactions table, handling pathway dicts or objects
             rxn_rows = []
-            for r in st.session_state.get("reactions", []):
+            for r in getattr(st.session_state["dataset"], "reactions", []):
                 reactants_str = ", ".join([
                     s for s in (getattr(c, "compound_lm_id", None) for c in getattr(r, "reactants", [])) if s
                 ])
@@ -429,7 +508,7 @@ def main():
 
             rxn_df = pd.DataFrame(rxn_rows)
 
-            st.dataframe(rxn_df)
+            st.dataframe(rxn_df, hide_index=True)
         
             # For each reaction, show a small graph and metadata (reactants -> reaction -> products)
             def reaction_to_dot(reaction):
@@ -475,7 +554,7 @@ def main():
                 return "\n".join(lines)
 
             # Provide a dropdown to select a reaction and view its graph + metadata
-            reactions = st.session_state.get("reactions", [])
+            reactions = getattr(st.session_state["dataset"], "reactions", [])
             if reactions:
                 reaction_options = [f"{i}: {getattr(r, 'reaction_name', '')} ({getattr(r, 'reaction_id', '')})" for i, r in enumerate(reactions)]
                 sel = st.selectbox("Select reaction to view", ["(none)"] + reaction_options, key="reaction_select")
@@ -509,7 +588,7 @@ def main():
 
             # Build pathways table, handling pathway dicts or objects and multiple pathways per reaction
             pathway_rows = []
-            for r in st.session_state.get("reactions", []):
+            for r in getattr(st.session_state["dataset"], "reactions", []):
                 for p in getattr(r, "pathways", []) or []:
                     if isinstance(p, dict):
                         pid = p.get("id")
@@ -541,7 +620,7 @@ def main():
 
                 pathway_df = pd.DataFrame(unique_rows)
                 st.subheader("Pathways for Reactions")
-                st.dataframe(pathway_df)
+                st.dataframe(pathway_df, hide_index=True)
             else:
                 st.info("No pathway entries available for fetched reactions.")
             # Show lipids annotated with reactions
@@ -564,7 +643,7 @@ def main():
                         })
                     lip_df = pd.DataFrame(lip_rows)
 
-                    st.dataframe(lip_df)
+                    st.dataframe(lip_df, hide_index=True)
                 else:
                     st.info("No lipids in the dataset have reactions.")
 
@@ -581,7 +660,7 @@ def main():
             st.subheader("Validation Report")
             st.write(f"Passed: {st.session_state['validation_passed']}")
 
-            issues = st.session_state["validation_issues"]
+            issues = getattr(st.session_state["dataset"], "validation_issues", [])
             st.write(f"Issues: {len(issues)}")
 
             show_all = st.checkbox("Show all issues", key="show_all_issues")
