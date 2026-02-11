@@ -34,6 +34,7 @@ def main():
         "generic_lm_id_assigned": False,
         "reactions_fetched": False,
         "validation_passed": None,
+        "validation_summary": None,
         "has_validation_report": False,
         "show_all_issues": False,
         "show_validation_section": True,
@@ -90,6 +91,7 @@ def main():
                     "generic_lm_id_assigned",
                     "reactions_fetched",
                     "validation_passed",
+                    "validation_summary",
                     "has_validation_report",
                     "show_all_issues",
                     "show_validation_section",
@@ -214,6 +216,7 @@ def main():
                 vr = dataset.validation_report
                 st.session_state["validation_passed"] = vr.passed
                 st.session_state["validation_issues"] = vr.issues or []
+                st.session_state["validation_summary"] = vr.summary or None
                 st.session_state["has_validation_report"] = True
             else:
                 st.session_state["has_validation_report"] = False
@@ -693,6 +696,9 @@ def main():
 
             issues = getattr(st.session_state, "validation_issues", [])
             st.write(f"Issues: {len(issues)}")
+
+            # summary = getattr(st.session_state, "validation_summary", None)
+            # st.write(f"Summary: {summary}")
 
             show_all = st.checkbox("Show all issues", key="show_all_issues")
             to_show = issues if show_all else issues[:5]
