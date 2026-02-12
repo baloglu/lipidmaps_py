@@ -180,7 +180,8 @@ class LipidDataset(LipidmapsBaseModel):
                 taxonomy_group=taxonomy_group
             )
             reactions = getattr(response, "reactions", []) or []
-
+            logger.info(f"Fetched {len(reactions)} reactions from ReactionChecker API.")
+            logger.debug(f"Reaction fetching parameters: lm_ids={lm_ids}, reaction_type={reaction_type}, only_lipid_components={only_lipid_components}, taxonomy_group={taxonomy_group}")
             # Deduplicate reactions by id and assign to dataset
             reaction_dict = {}
             for reaction in reactions:

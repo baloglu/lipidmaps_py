@@ -71,7 +71,7 @@ class DataManager(LipidmapsBaseModel):
     use_refmet: bool = Field(default=True, description="Whether to use RefMet for annotation during CSV processing")
     use_headgroups: bool = Field(default=True, description="Whether to use headgroup mapping for filling missing LM IDs")
     fetch_reactions: bool = Field(default=True, description="Whether to fetch reactions by LM ID after processing CSV")
-    
+    taxonomy_group: Optional[str] = Field(default="all", description="Taxonomy group filter for reaction fetching (e.g. 'bacteria', 'mammalia', 'all')")
     # User-specified column configuration
     lipid_name_column: Optional[Union[int, str]] = Field(
         default=0,
@@ -168,7 +168,7 @@ class DataManager(LipidmapsBaseModel):
             logger.info(f"Filled missing LM IDs using headgroup mapping: {headgroup_updates} updated")
 
         if self.fetch_reactions:
-            reaction_updates = self.dataset.fetch_reactions_by_lm_id()
+            reaction_updates = self.dataset.fetch_reactions_by_lm_id(taxonomy_group=self.taxonomy_group)
             try:
                 count = len(reaction_updates) if reaction_updates is not None else 0
             except Exception:

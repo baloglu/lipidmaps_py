@@ -4,6 +4,7 @@ import sys
 import pandas as pd
 import plotly.express as px
 from lipidmaps.data.data_manager import DataManager
+from lipidmaps.data.models import reaction
 
 # ---------------------- BOOTSTRAP ----------------------
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -20,10 +21,19 @@ def main():
     )
 
     st.header("Quantitative Data Demo")
-    st.markdown("""
-    Use the sidebar to select a file or upload your CSV.  
-    Process the file to see standardized lipid annotations.
-    """)
+    
+    # Display file being analyzed if processed
+    if st.session_state.get("processed") and st.session_state.get("_last_file_used"):
+        file_name = st.session_state.get("_last_file_used")
+        st.markdown(f"""
+        **Analyzing:** `{file_name}`  
+        View the results in the tabs below.
+        """)
+    else:
+        st.markdown("""
+        Use the sidebar to select a file or upload your CSV.  
+        Process the file to see standardized lipid annotations.
+        """)
 
     # ---------------------- SESSION DEFAULTS ----------------------
     defaults = {
@@ -148,7 +158,7 @@ def main():
                 "Taxonomy group for reactions",
                 allowed_taxonomy_groups,
                 index=allowed_taxonomy_groups.index(st.session_state.get("taxonomy_group", "all")),
-                disabled=not file_chosen,
+                disabled=not (fetch_reactions and file_chosen),
                 help="Restrict reactions lookup to this taxonomy group when fetching reactions. Choose 'all' to omit taxonomy filter.",
             )
             st.session_state["taxonomy_group"] = taxonomy_group
@@ -220,7 +230,7 @@ def main():
             fp = st.session_state["file_to_use"]
 
             from lipidmaps import process_csv
-            dataset = process_csv(fp, validate_data=validate_data, use_refmet=use_refmet, use_headgroups=use_headgroups)
+            dataset = process_csv(fp, validate_data=validate_data, use_refmet=use_refmet, use_headgroups=use_headgroups, taxonomy_group=taxonomy_group)
             st.session_state["dataset"] = dataset
             st.session_state["processed"] = True
             st.session_state["reactions"] = []  # clear old reactions
@@ -511,7 +521,7 @@ def main():
         ds = st.session_state["dataset"]
 
         try:
-            tg = st.session_state.get("taxonomy_group", None)
+            tg = st.session_state.get("taxonomy_group", None)   
             if tg and tg != "all":
                 reactions = ds.fetch_reactions_by_lm_id(
                     reaction_type="species-level",
@@ -534,28 +544,44 @@ def main():
 
     with tabs[tab_index["reactions"]]:
         st.subheader("Reactions for LM IDs")
+        st.write(f"Taxonomy group filter: {st.session_state.get('taxonomy_group', 'all')}")
+
         if not getattr(st.session_state["dataset"], "reactions", None):
             st.info("No reactions fetched yet. Use Tools → Fetch reactions by LM ID.")
         else:
             # Build reactions table, handling pathway dicts or objects
             rxn_rows = []
             for r in getattr(st.session_state["dataset"], "reactions", []):
-                reactants_str = ", ".join([
-                    s for s in (getattr(c, "compound_lm_id", None) for c in getattr(r, "reactants", [])) if s
-                ])
-                products_str = ", ".join([
-                    s for s in (getattr(c, "compound_lm_id", None) for c in getattr(r, "products", [])) if s
-                ])
+                # Create clickable LM ID links for reactants
+                reactants_links = []
+                for c in getattr(r, "reactants", []):
+                    lm_id = getattr(c, "compound_lm_id", None)
+                    if lm_id:
+                        reactants_links.append(f'<a href="https://lipidmaps.org/databases/lmsd/{lm_id}" target="_blank">{lm_id}</a>')
+                reactants_str = ", ".join(reactants_links) if reactants_links else "N/A"
+                
+                # Create clickable LM ID links for products
+                products_links = []
+                for c in getattr(r, "products", []):
+                    lm_id = getattr(c, "compound_lm_id", None)
+                    if lm_id:
+                        products_links.append(f'<a href="https://lipidmaps.org/databases/lmsd/{lm_id}" target="_blank">{lm_id}</a>')
+                products_str = ", ".join(products_links) if products_links else "N/A"
+                
                 pathways_str = ", ".join([
                     s for s in ((p.get("name") if isinstance(p, dict) else getattr(p, "pathway_name", None)) for p in getattr(r, "pathways", [])) if s
                 ])
-                ec_str = ", ".join([
-                    s for s in ((p.get("ec_number") if isinstance(p, dict) else getattr(p, "ec_number", None)) for p in getattr(r, "proteins", [])) if s
-                ])
+                # Create clickable EC number links to BRENDA
+                ec_links = []
+                for p in getattr(r, "proteins", []):
+                    ec = p.get("ec_number") if isinstance(p, dict) else getattr(p, "ec_number", None)
+                    if ec:
+                        ec_links.append(f'<a href="https://www.brenda-enzymes.org/enzyme.php?ecno={ec}" target="_blank">{ec}</a>')
+                ec_str = ", ".join(ec_links) if ec_links else "N/A"
                 genes_str = ", ".join([
                     s for s in ((p.get("gene_name") if isinstance(p, dict) else getattr(p, "gene_name", None)) for p in getattr(r, "genes", [])) if s
                 ])
-
+                organisms = ", ".join(r.organisms) if r.organisms else "N/A"
                 rxn_rows.append({
                     "reaction_id": getattr(r, "reaction_id", None),
                     "reaction_name": getattr(r, "reaction_name", None),
@@ -563,12 +589,13 @@ def main():
                     "products": products_str,
                     "pathways": pathways_str,
                     "ec_number": ec_str,
-                    "genes": genes_str,
+                    "organisms": organisms,
                 })
 
             rxn_df = pd.DataFrame(rxn_rows)
             st.write(f"Rows: {rxn_df.shape[0]}, Columns: {rxn_df.shape[1]}")
-            st.dataframe(rxn_df, hide_index=True)
+            # Display with HTML rendering for clickable EC number links
+            st.write(rxn_df.to_html(escape=False, index=False), unsafe_allow_html=True)
         
             # For each reaction, show a small graph and metadata (reactants -> reaction -> products)
             def reaction_to_dot(reaction):

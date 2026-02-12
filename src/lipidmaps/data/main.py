@@ -136,7 +136,7 @@ def main() -> None:
         )
 
     # Fetch reactions for all LM IDs in the dataset
-    reactions = dataset.fetch_reactions_by_lm_id(reaction_type="class-level")
+    reactions = dataset.fetch_reactions_by_lm_id(reaction_type="class-level", only_lipid_components=True, taxonomy_group="bacteria")
     print(reactions[:1])  # Print first 1 reaction for brevity
     logger.info(f"Lipids with reactions: {dataset.list_lipids_with_reactions()[:1]}")
     

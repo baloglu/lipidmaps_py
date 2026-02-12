@@ -40,6 +40,22 @@ class ReactionData(LipidmapsBaseModel):
     reaction_name: Optional[str] = None
     reaction_id: Optional[int] = None
     reaction_type: Optional[str] = None
+
+    @property
+    def organisms(self) -> List[str]:
+        """Return list of organisms where proteins in this reaction are present."""
+        organism_fields = ['bacteria', 'archaea', 'fungi', 'viridiplantae', 
+                          'mammalia', 'arthropoda', 'eukaryota']
+        organisms_set = set()
+        
+        # Iterate through all proteins and collect organisms
+        for protein in self.proteins:
+            for org in organism_fields:
+                if protein.get(org, False):
+                    organisms_set.add(org)
+        
+        return sorted(list(organisms_set))
+    
     # Allow additional fields from API response
     model_config = {"extra": "allow"}
 
@@ -74,7 +90,7 @@ class ReactionData(LipidmapsBaseModel):
             proteins=self.proteins,
             curations=self.curations,
             pathways=self.pathways,
-            reaction_type=self.reaction_type,
+            reaction_type=self.reaction_type
         )
 
 
