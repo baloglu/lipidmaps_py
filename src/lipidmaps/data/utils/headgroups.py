@@ -98,7 +98,7 @@ lipidmaps_headgroups = {
     "GT1b": [
         "LMSP0601BW00"
     ],
-    "PI-O": [
+    "PI O-": [
         "LMGP06020000"
     ],
     "GT1c": [
