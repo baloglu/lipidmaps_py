@@ -6,7 +6,7 @@ content-type: application/json
     "names":["Butyrylcarnitine", "Cholesterol", "PC 18:1"]
 }
 
-### Reaction lookup by LMSD IDs
+### Reaction lookup by LMSD IDs dev
 POST https://dev.lipidmaps.org/api/reactions HTTP/1.1
 content-type: application/json
 
@@ -14,7 +14,18 @@ content-type: application/json
     "search_mode": "default",
     "search_type": "all",
     "generic_reactions": false,
-    "lmsd_ids": ["LMST02030299"]
+    "lmsd_ids": ["LMGP08010005"]
+}
+
+### Reaction lookup by LMSD IDs localhost
+POST http://localhost/api/reactions HTTP/1.1
+content-type: application/json
+
+{
+    "search_mode": "default",
+    "search_type": "all",
+    "generic_reactions": false,
+    "lmsd_ids": ["LMGP08010005"]
 }
 
 ### Refmet lookup by names

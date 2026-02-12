@@ -39,6 +39,7 @@ def main():
         "show_all_issues": False,
         "show_validation_section": True,
         "reactions": [],              # persistent reactions
+        "taxonomy_group": "all",
     }
 
     for k, v in defaults.items():
@@ -138,6 +139,19 @@ def main():
                 value=True,
                 disabled=not file_chosen,
             )
+
+            # Taxonomy group selection for reactions fetching
+            allowed_taxonomy_groups = ['all', 'bacteria', 'archaea', 'fungi', 'viridiplantae', 'mammalia', 'arthropoda', 'eukaryota']
+            # allow choosing taxonomy only once dataset is processed
+            st.session_state.setdefault("taxonomy_group", "all")
+            taxonomy_group = st.selectbox(
+                "Taxonomy group for reactions",
+                allowed_taxonomy_groups,
+                index=allowed_taxonomy_groups.index(st.session_state.get("taxonomy_group", "all")),
+                disabled=not file_chosen,
+                help="Restrict reactions lookup to this taxonomy group when fetching reactions. Choose 'all' to omit taxonomy filter.",
+            )
+            st.session_state["taxonomy_group"] = taxonomy_group
 
             processed = st.button("Process Data", disabled=not file_chosen)
             if st.session_state["processed"] and file_chosen:
@@ -497,7 +511,19 @@ def main():
         ds = st.session_state["dataset"]
 
         try:
-            reactions = ds.fetch_reactions_by_lm_id(reaction_type="species-level", only_lipid_components=False)
+            tg = st.session_state.get("taxonomy_group", None)
+            if tg and tg != "all":
+                reactions = ds.fetch_reactions_by_lm_id(
+                    reaction_type="species-level",
+                    only_lipid_components=False,
+                    taxonomy_group=tg,
+                )
+            else:
+                # 'all' selected — omit taxonomy_group from request
+                reactions = ds.fetch_reactions_by_lm_id(
+                    reaction_type="species-level",
+                    only_lipid_components=False,
+                )
             st.session_state["reactions"] = reactions
 
             st.success(f"Fetched {len(reactions)} reactions.")
@@ -541,7 +567,7 @@ def main():
                 })
 
             rxn_df = pd.DataFrame(rxn_rows)
-
+            st.write(f"Rows: {rxn_df.shape[0]}, Columns: {rxn_df.shape[1]}")
             st.dataframe(rxn_df, hide_index=True)
         
             # For each reaction, show a small graph and metadata (reactants -> reaction -> products)

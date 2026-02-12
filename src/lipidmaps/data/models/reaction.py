@@ -111,6 +111,7 @@ class ReactionChecker(LipidmapsBaseModel):
         search_mode: str = "default",
         generic_reactions: bool = True,
         only_lipid_components: bool = True,
+        taxonomy_group: Optional[str] = "all",
         reaction_type: Optional[str] = None,
     ) -> ReactionResponse:
         """Check reactions for given LIPID MAPS IDs.
@@ -123,6 +124,7 @@ class ReactionChecker(LipidmapsBaseModel):
             search_mode: Mode string for the API (default: "default")
             generic_reactions: Whether to request generic reactions
             only_lipid_components: Whether to include only lipid components in the response
+            taxonomy_group: Optional taxonomy group to filter reactions
         Returns:
             ReactionResponse with filtered reactions containing only lm_main components if specified
         """
@@ -136,6 +138,9 @@ class ReactionChecker(LipidmapsBaseModel):
         }
         if only_lipid_components:
             payload["search_type"] = search_type
+        if taxonomy_group != "all":
+            payload["taxonomy_group"] = taxonomy_group
+
         logger.debug("Reaction check payload: %s", payload)
         try:
             logger.info(f"Sending reaction check request for {len(lm_ids)} LM IDs to {self.api_url}")

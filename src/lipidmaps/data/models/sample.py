@@ -154,7 +154,7 @@ class LipidDataset(LipidmapsBaseModel):
 
         return [l for l in self.lipids if combined.matches(l)]
 
-    def fetch_reactions_by_lm_id(self, reaction_type: Optional[str] = None, only_lipid_components: bool = True) -> List[ReactionData]:
+    def fetch_reactions_by_lm_id(self, reaction_type: Optional[str] = None, only_lipid_components: bool = True, taxonomy_group: Optional[str] = "all") -> List[ReactionData]:
         """
         Fetch reactions for LM IDs present in this dataset using the ReactionChecker API.
         Attaches the fetched reactions to `self.reactions` and annotates lipids in-place.
@@ -177,6 +177,7 @@ class LipidDataset(LipidmapsBaseModel):
                 generic_reactions=False,
                 reaction_type=("class-level" if reaction_type is None else reaction_type),
                 only_lipid_components=only_lipid_components,
+                taxonomy_group=taxonomy_group
             )
             reactions = getattr(response, "reactions", []) or []
 
