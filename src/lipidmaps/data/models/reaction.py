@@ -17,7 +17,11 @@ class CompoundComponent(LipidmapsBaseModel):
     compound_sys_name: Optional[str] = None
     compound_synonyms: Optional[str] = None
     compound_generic_id: Optional[str] = None
-
+    compound_abbrev: Optional[str] = None
+    compound_abbrev_chains: Optional[str] = None
+    compound_headgroup: Optional[str] = None
+    compound_full_struct: Optional[str] = None
+    compound_smiles: Optional[str] = None
     def display_name(self) -> str:
         """Get the best available name for this compound."""
         return (
@@ -107,7 +111,7 @@ class ReactionChecker(LipidmapsBaseModel):
     base_url: str = Field(..., description="Base URL for the reaction API")
     endpoint: str = Field(default="/api/reactions", description="API endpoint path")
     timeout: int = Field(
-        default=10, description="Request timeout in seconds", ge=1, le=300
+        default=60, description="Request timeout in seconds", ge=1, le=300
     )
 
     # Computed field for full API URL
@@ -122,7 +126,7 @@ class ReactionChecker(LipidmapsBaseModel):
 
     def check_reactions(
         self,
-        lm_ids: List[str],
+        lm_ids: Union[List[str], str],
         search_type: str = "lipids",
         search_mode: str = "default",
         generic_reactions: bool = True,

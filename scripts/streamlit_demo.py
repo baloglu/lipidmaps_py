@@ -167,19 +167,26 @@ def main():
             if st.session_state["processed"] and file_chosen:
                 st.badge("Success! Please use the Processed tab to view results", icon=":material/check:", color="green")
 
-        # ---- TOOLS ----
-        with st.expander("Tools", expanded=True):
-            processed_flag = bool(st.session_state["processed"])
+        # # ---- TOOLS ----
+        # with st.expander("Tools", expanded=True):
+        #     processed_flag = bool(st.session_state["processed"])
 
-            generic_lm_id_button = st.button("Assign Generic LMIDs",
-                                            disabled=(not processed_flag or use_headgroups))
-            if st.session_state["generic_lm_id_assigned"]:
-                st.badge("Generic LMIDs assigned", icon=":material/check:", color="green")
+        #     generic_lm_id_button = st.button("Assign Generic LMIDs",
+        #                                     disabled=(not processed_flag or use_headgroups))
+        #     if st.session_state["generic_lm_id_assigned"]:
+        #         st.badge("Generic LMIDs assigned", icon=":material/check:", color="green")
 
-            fetch_reactions_button = st.button("Fetch reactions by LM ID",
-                                            disabled=(not processed_flag or fetch_reactions))
-            if st.session_state["reactions_fetched"]:
-                st.badge("Reactions fetched", icon=":material/check:", color="green")
+        #     fetch_reactions_button = st.button("Fetch reactions by LM ID",
+        #                                     disabled=(not processed_flag or fetch_reactions))
+        #     if st.session_state["reactions_fetched"]:
+        #         st.badge("Reactions fetched", icon=":material/check:", color="green")
+
+        # ---- PAGES ----
+        with st.expander("All", expanded=True):
+            if st.button("All Reactions"):
+                st.session_state["show_all_reactions"] = True
+            if st.button("Dashboard"):
+                st.session_state["show_all_reactions"] = False
 
         # ---- VIEW ----
         with st.expander("View", expanded=True):
@@ -189,6 +196,26 @@ def main():
             )
 
     # ---------------------- TABS ----------------------
+    # If user requested All Reactions, load and run `scripts/reactions.py` as main content
+    if st.session_state.get("show_all_reactions"):
+        try:
+            # Try to import the module by path and call its `main()` if present
+            import importlib.util
+            mod_path = os.path.join(dir_path, "reactions.py")
+            if os.path.exists(mod_path):
+                spec = importlib.util.spec_from_file_location("scripts.reactions", mod_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)  # type: ignore
+                if hasattr(module, "main") and callable(module.main):
+                    module.main()
+                else:
+                    # executed file may include top-level Streamlit code
+                    pass
+            else:
+                st.error(f"Reactions file not found: {mod_path}")
+        except Exception as e:
+            st.error(f"Failed to load All Reactions page: {e}")
+        return
     tab_labels = ["Preview", "Processed", "Reactions", "Validation"]
     tabs = st.tabs(tab_labels)
 
