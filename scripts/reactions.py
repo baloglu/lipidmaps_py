@@ -134,18 +134,90 @@ def fetch_all_reactions():
 selected = st.session_state.get("selected_reaction", None)
 reaction_list = []
 
+# Load reactions: prefer a `ReactionData` passed via session state, otherwise fetch all
 if selected:
-	st.write("Selected reaction from main app:", selected)
+    st.write("Selected reaction from main app:", selected)
+    # If the session value is a ReactionData instance, use it directly
+    if isinstance(selected, ReactionData):
+        reaction_list = [selected]
+    else:
+        # Attempt to interpret the selected value as an ID and find it in the full set
+        all_reactions = fetch_all_reactions()
+        try:
+            sel_id = int(selected)
+        except Exception:
+            sel_id = None
+        if sel_id is not None:
+            reaction_list = [r for r in all_reactions.reactions if r.reaction_id == sel_id]
+        else:
+            reaction_list = []
 else:
-	all_reactions = fetch_all_reactions()
-	reaction_list = all_reactions.reactions
+    all_reactions = fetch_all_reactions()
+    reaction_list = all_reactions.reactions
+
+# Default: sort reactions by reaction_id descending
+def rid_key(r: "ReactionData") -> int:
+    val = getattr(r, "reaction_id", None)
+    if val is None:
+        return -1
+    try:
+        return int(val)
+    except Exception:
+        return -1
+
+reaction_list = sorted(reaction_list, key=rid_key, reverse=True)
+
+# ---- Quick search using Query helper (searches id, name, and compound names/LMIDs)
+search_container = st.container(border=True)
+search_q = search_container.text_input("Search reactions (id, name, compound)", key="reactions_search_query")
+if search_q:
+    try:
+        from lipidmaps.data.models.query import from_callable
+
+        q_lower = search_q.lower()
+
+        def match_fn(r: ReactionData) -> bool:
+            # reaction id
+            try:
+                if r.reaction_id is not None and q_lower in str(r.reaction_id):
+                    return True
+            except Exception:
+                pass
+            # reaction name
+            try:
+                if r.reaction_name and q_lower in (r.reaction_name or "").lower():
+                    return True
+            except Exception:
+                pass
+            # components (reactants/products)
+            try:
+                for comp in (r.reactants or []) + (r.products or []):
+                    for attr in ("compound_name", "compound_lm_id", "compound_generic_id", "compound_sys_name"):
+                        val = getattr(comp, attr, None) or ""
+                        if q_lower in str(val).lower():
+                            return True
+            except Exception:
+                pass
+            return False
+
+        q = from_callable(match_fn)
+        filtered = [r for r in reaction_list if q(r)]
+        search_container.write(f"Matches: {len(filtered)}")
+        if not filtered:
+            search_container.info("No matches found for your query.")
+        else:
+            # keep the same descending sort for matched results
+            reaction_list = sorted(filtered, key=rid_key, reverse=True)
+    except Exception:
+        # If query helpers aren't available for some reason, skip search
+        pass
      
 # ---- Build Table ----
 rows = [reaction_to_row(r) for r in reaction_list]
 df = pd.DataFrame(rows)
 
 # ---- Pagination ----
-PAGE_SIZE = 10
+PAGE_SIZE = 20
 total_pages = ceil(len(df) / PAGE_SIZE)
 
 if "page" not in st.session_state:
@@ -163,7 +235,7 @@ start = (st.session_state.page - 1) * PAGE_SIZE
 end = start + PAGE_SIZE
 page_df = df.iloc[start:end]
 
-st.dataframe(page_df, use_container_width=True)
+st.dataframe(page_df, use_container_width=True, hide_index=True)
 
 # ---- Row selection ----
 selected_id = st.selectbox(
