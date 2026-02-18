@@ -20,14 +20,16 @@ def reaction_to_row(r):
         "num_products": len(r.products),
         "num_proteins": len(r.proteins),
         "num_pathways": len(r.pathways),
+        "has_lipid_components": r.has_lm_main_components(),
+        "type": r.reaction_type or "—",
     }
 
 
 def display_compound_card(compound):
     """Display a single compound as a card."""
     with st.container(border=True):
-        # Main info
-        st.markdown(f"**{compound.compound_name}**")
+        # Use display_name() method for best available name
+        st.markdown(f"**{compound.display_name()}**")
         if compound.compound_lm_id:
             st.caption(f"LM ID: `{compound.compound_lm_id}`")
         
@@ -38,7 +40,6 @@ def display_compound_card(compound):
         # Additional details in expander
         with st.expander("Details", expanded=False):
             details = {
-                "ID": compound.id,
                 "Type": compound.compound_type,
                 "Synonyms": compound.compound_synonyms or "—",
                 "Generic ID": compound.compound_generic_id or "—",
@@ -52,6 +53,16 @@ def display_compound_card(compound):
 
 def show_full_reaction(r: "ReactionData"):
     st.subheader(f"Reaction {r.reaction_id}: {r.reaction_name}")
+    
+    # Show reaction metadata
+    metadata_col1, metadata_col2 = st.columns(2)
+    with metadata_col1:
+        if r.reaction_type:
+            st.caption(f"Type: **{r.reaction_type}**")
+    with metadata_col2:
+        organisms = r.organisms
+        if organisms:
+            st.caption(f"Organisms: **{', '.join(organisms)}**")
 
     # Display Reactants and Products side-by-side
     st.markdown("### Reactants & Products")
@@ -78,27 +89,47 @@ def show_full_reaction(r: "ReactionData"):
     
     st.markdown("### Proteins")
     if r.proteins:
-        st.json(r.proteins)
+        proteins_col1, proteins_col2 = st.columns(2)
+        with proteins_col1:
+            st.write(f"**Count:** {len(r.proteins)}")
+        with proteins_col2:
+            organisms = r.organisms
+            if organisms:
+                st.write(f"**Organisms:** {', '.join(organisms)}")
+        with st.expander("Protein Details"):
+            st.json(r.proteins)
     else:
         st.info("No proteins")
 
     st.markdown("### Curations")
     if r.curations:
-        st.json(r.curations)
+        st.write(f"**Count:** {len(r.curations)}")
+        with st.expander("Curation Details"):
+            st.json(r.curations)
     else:
         st.info("No curations")
 
     st.markdown("### Pathways")
     if r.pathways:
-        st.json(r.pathways)
+        st.write(f"**Count:** {len(r.pathways)}")
+        with st.expander("Pathway Details"):
+            st.json(r.pathways)
     else:
         st.info("No pathways")
+    
+    st.markdown("### Genes")
+    if r.genes:
+        st.write(f"**Count:** {len(r.genes)}")
+        with st.expander("Gene Details"):
+            st.json(r.genes)
+    else:
+        st.info("No genes")
 
 # @st.cache_data(ttl=60 * 60 * 2)
 def fetch_all_reactions():
 	"""Fetch all reactions and cache result for 2 hours."""
 	reaction_checker = ReactionChecker(base_url=LMSD_REACTIONS_BASE_URL)
-	return reaction_checker.check_reactions(lm_ids="all")
+	return reaction_checker.check_reactions(lm_ids="all", only_lipid_components=False, generic_reactions=False)
 
 
 # Read selection from main app via st.session_state (direct access option)
