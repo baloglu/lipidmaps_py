@@ -14,7 +14,7 @@ content-type: application/json
     "search_mode": "default",
     "search_type": "all",
     "generic_reactions": false,
-    "lmsd_ids": ["LMGP08010005"]
+    "lmsd_ids": "all"
 }
 
 ### Reaction lookup by LMSD IDs localhost
@@ -25,7 +25,7 @@ content-type: application/json
     "search_mode": "default",
     "search_type": "all",
     "generic_reactions": false,
-    "lmsd_ids": ["LMGP08010005"]
+    "lmsd_ids": "all"
 }
 
 ### Refmet lookup by names
