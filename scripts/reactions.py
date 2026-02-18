@@ -36,17 +36,15 @@ def display_compound_card(compound):
         # System name
         if compound.compound_sys_name:
             st.markdown(f"<small>*{compound.compound_sys_name}*</small>", unsafe_allow_html=True)
-        
+
         # Additional details in expander
         with st.expander("Details", expanded=False):
-            details = {
-                "Type": compound.compound_type,
-                "Synonyms": compound.compound_synonyms or "—",
-                "Generic ID": compound.compound_generic_id or "—",
-                "Abbreviation": compound.compound_abbrev or "—",
-                "Chains": compound.compound_abbrev_chains or "—",
-                "Headgroup": compound.compound_headgroup or "—",
-            }
+            details = {}
+            for key in ["compound_synonyms", "compound_generic_id", "compound_abbrev",
+                        "compound_abbrev_chains", "compound_headgroup", "compound_full_struct", "compound_smiles"]:
+                value = getattr(compound, key, None)
+                if value:
+                    details[key.replace("compound_", "").replace("_", " ").title()] = value
             for key, value in details.items():
                 st.text(f"{key}: {value}")
 
