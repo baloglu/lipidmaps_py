@@ -22,25 +22,77 @@ def reaction_to_row(r):
         "num_pathways": len(r.pathways),
     }
 
+
+def display_compound_card(compound):
+    """Display a single compound as a card."""
+    with st.container(border=True):
+        # Main info
+        st.markdown(f"**{compound.compound_name}**")
+        if compound.compound_lm_id:
+            st.caption(f"LM ID: `{compound.compound_lm_id}`")
+        
+        # System name
+        if compound.compound_sys_name:
+            st.markdown(f"<small>*{compound.compound_sys_name}*</small>", unsafe_allow_html=True)
+        
+        # Additional details in expander
+        with st.expander("Details", expanded=False):
+            details = {
+                "ID": compound.id,
+                "Type": compound.compound_type,
+                "Synonyms": compound.compound_synonyms or "—",
+                "Generic ID": compound.compound_generic_id or "—",
+                "Abbreviation": compound.compound_abbrev or "—",
+                "Chains": compound.compound_abbrev_chains or "—",
+                "Headgroup": compound.compound_headgroup or "—",
+            }
+            for key, value in details.items():
+                st.text(f"{key}: {value}")
+
+
 def show_full_reaction(r: "ReactionData"):
     st.subheader(f"Reaction {r.reaction_id}: {r.reaction_name}")
 
-    st.markdown("### Reactants")
-    for comp in r.reactants:
-        st.json(comp.__dict__)
+    # Display Reactants and Products side-by-side
+    st.markdown("### Reactants & Products")
+    reactant_col, product_col = st.columns(2)
+    
+    with reactant_col:
+        st.markdown("#### Reactants")
+        if r.reactants:
+            for comp in r.reactants:
+                display_compound_card(comp)
+        else:
+            st.info("No reactants")
+    
+    with product_col:
+        st.markdown("#### Products")
+        if r.products:
+            for comp in r.products:
+                display_compound_card(comp)
+        else:
+            st.info("No products")
 
-    st.markdown("### Products")
-    for comp in r.products:
-        st.json(comp.__dict__)
-
+    # Additional reaction details
+    st.markdown("---")
+    
     st.markdown("### Proteins")
-    st.json(r.proteins)
+    if r.proteins:
+        st.json(r.proteins)
+    else:
+        st.info("No proteins")
 
     st.markdown("### Curations")
-    st.json(r.curations)
+    if r.curations:
+        st.json(r.curations)
+    else:
+        st.info("No curations")
 
     st.markdown("### Pathways")
-    st.json(r.pathways)
+    if r.pathways:
+        st.json(r.pathways)
+    else:
+        st.info("No pathways")
 
 # @st.cache_data(ttl=60 * 60 * 2)
 def fetch_all_reactions():
@@ -70,11 +122,11 @@ total_pages = ceil(len(df) / PAGE_SIZE)
 if "page" not in st.session_state:
     st.session_state.page = 1
 
-prev, next = st.columns(2)
-with prev:
+prev_col, next_col = st.columns(2)
+with prev_col:
     if st.button("⬅ Previous") and st.session_state.page > 1:
         st.session_state.page -= 1
-with next:
+with next_col:
     if st.button("Next ➡") and st.session_state.page < total_pages:
         st.session_state.page += 1
 
