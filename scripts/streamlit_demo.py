@@ -299,6 +299,7 @@ def main():
                     "lm_id": getattr(lipid, "lm_id", None),
                     "generic_lm_id": getattr(lipid, "generic_lm_id", None),
                     "refmet": getattr(lipid, "refmet_id", None),
+                    "mass": getattr(lipid, "mass", None),
                     "main_class": getattr(lipid, "main_class", None),
                     "sub_class": getattr(lipid, "sub_class", None),
                 })
@@ -373,6 +374,48 @@ def main():
                         search_container.code(f"# Equivalent dataset Query\nq = {q_code}\nresults = dataset.query_lipids(q, combine='or')\nlen(results)", language="python")
                     except Exception:
                         pass
+
+            # ---- Mass range query ----
+            with search_container.expander("Search by mass range", expanded=False):
+                try:
+                    min_mass = st.number_input("Min mass (inclusive)", value=0.0, format="%.6f", key="mass_min")
+                    max_mass = st.number_input("Max mass (inclusive)", value=1000.0, format="%.6f", key="mass_max")
+                except Exception:
+                    min_mass = 0.0
+                    max_mass = 1000.0
+
+                if st.button("Find lipids by mass", key="mass_search"):
+                    try:
+                        def mass_pred(l):
+                            m = getattr(l, "mass", None)
+                            if m is None:
+                                return False
+                            try:
+                                return (m >= float(min_mass)) and (m <= float(max_mass))
+                            except Exception:
+                                return False
+
+                        results = dataset.query_lipids(mass_pred)
+                        st.write(f"Matches: {len(results)}")
+                        if not results:
+                            st.info("No lipids found in that mass range.")
+                        else:
+                            rows = [{"input_name": r.input_name, "mass": getattr(r, "mass", None), "lm_id": getattr(r, "lm_id", None)} for r in results]
+                            df_mass = pd.DataFrame(rows)
+                            st.dataframe(df_mass, hide_index=True)
+
+                            opts = [f"{i}: {r.input_name} (mass={getattr(r,'mass',None)})" for i, r in enumerate(results)]
+                            sel = st.selectbox("Select lipid to inspect", opts, key="mass_select")
+                            try:
+                                sel_idx = int(sel.split(":", 1)[0])
+                            except Exception:
+                                sel_idx = None
+                            if sel_idx is not None:
+                                lipid = results[sel_idx]
+                                st.session_state["selected_lipid_idx"] = next((i for i, L in enumerate(dataset.lipids) if L.input_name == lipid.input_name), None)
+                                st.markdown(f"**Selected:** {lipid.input_name} — mass: {getattr(lipid, 'mass', None)} — LMID: {getattr(lipid, 'lm_id', None)}")
+                    except Exception as e:
+                        st.error(f"Mass query failed: {e}")
 
             # Simple per-sample listing using dataset helper
             st.subheader("Per-sample lipid values")
