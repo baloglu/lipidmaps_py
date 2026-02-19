@@ -31,7 +31,7 @@ class SampleMetadata(LipidmapsBaseModel):
 
     def mean_value_for_lipids(
         self,
-        lipids: List[Union["QuantifiedLipid", str]],
+        lipid: Union["QuantifiedLipid", str, List[Union["QuantifiedLipid", str]]],
         dataset: Optional["LipidDataset"] = None,
         skip_missing: bool = True,
     ) -> Optional[float]:
@@ -47,7 +47,14 @@ class SampleMetadata(LipidmapsBaseModel):
         """
         if dataset is None:
             raise ValueError("dataset is required to resolve lipid names; call dataset.mean_value_for_lipids(...) instead")
-        return dataset.mean_value_for_lipids(self, lipids, skip_missing=skip_missing)
+        
+        lipid_list = lipid if isinstance(lipid, list) else [lipid]
+        return dataset.mean_value_for_lipids(
+            sample=self,
+            lipids=lipid_list,
+            skip_missing=skip_missing,
+        )
+
 
 class QuantifiedLipid(LipidmapsBaseModel):
     input_name: str
