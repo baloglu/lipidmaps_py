@@ -30,9 +30,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          # Install the package so mkdocstrings can import `lipidmaps`
+          python -m pip install -e .
 
       - name: Build site
-        run: mkdocs build --strict --site-dir site
+        run: PYTHONPATH=src python -m mkdocs build --strict --site-dir site
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
