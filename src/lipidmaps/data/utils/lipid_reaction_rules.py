@@ -1,0 +1,81 @@
+lipid_reaction_rules = {
+  "metadata": {
+    "version": "0.1",
+    "description": "Rules for lipid headgroup remodeling and fatty acid mass shifts for quantitation.",
+    "units": "Daltons (Da)",
+    "usage_note": "Conserve acyl tails (Total C:DB) during headgroup swaps."
+  },
+  "headgroups": {
+    "PA": {
+      "name": "Phosphatidic Acid",
+      "mass_shift": 79.9663,
+      "can_convert_to": ["PC", "PE", "PS", "PI", "PG", "DAG"]
+    },
+    "PC": {
+      "name": "Phosphatidylcholine",
+      "mass_shift": 165.0555,
+      "can_convert_to": ["PA", "LPC", "DAG", "SM"]
+    },
+    "PE": {
+      "name": "Phosphatidylethanolamine",
+      "mass_shift": 123.0085,
+      "can_convert_to": ["PA", "PC", "PS", "LPE"]
+    },
+    "PS": {
+      "name": "Phosphatidylserine",
+      "mass_shift": 167.0222,
+      "can_convert_to": ["PE", "PA"]
+    },
+    "PI": {
+      "name": "Phosphatidylinositol",
+      "mass_shift": 242.0192,
+      "can_convert_to": ["PA", "PIP", "PIP2", "PIP3"]
+    },
+    "PG": {
+      "name": "Phosphatidylglycerol",
+      "mass_shift": 154.0031,
+      "can_convert_to": ["CL", "PA"]
+    },
+    "DAG": {
+      "name": "Diacylglycerol",
+      "mass_shift": 17.0027,
+      "can_convert_to": ["PA", "PC", "PE", "TAG"]
+    },
+    "TAG": {
+      "name": "Triacylglycerol",
+      "mass_shift": "VARIABLE_BY_TAIL",
+      "can_convert_to": ["DAG"]
+    }
+  },
+  "fatty_acids": {
+    "12:0": { "name": "Lauric", "mass_delta": 182.1671 },
+    "14:0": { "name": "Myristic", "mass_delta": 210.1984 },
+    "14:1": { "name": "Myristoleic", "mass_delta": 208.1827 },
+    "16:0": { "name": "Palmitic", "mass_delta": 238.2297 },
+    "16:1": { "name": "Palmitoleic", "mass_delta": 236.2140 },
+    "18:0": { "name": "Stearic", "mass_delta": 266.2610 },
+    "18:1": { "name": "Oleic", "mass_delta": 264.2453 },
+    "18:2": { "name": "Linoleic", "mass_delta": 262.2297 },
+    "18:3": { "name": "Linolenic", "mass_delta": 260.2140 },
+    "20:0": { "name": "Arachidic", "mass_delta": 294.2923 },
+    "20:1": { "name": "Gadoleic", "mass_delta": 292.2766 },
+    "20:2": { "name": "Eicosadienoic", "mass_delta": 290.2610 },
+    "20:3": { "name": "DGLA", "mass_delta": 288.2453 },
+    "20:4": { "name": "Arachidonic", "mass_delta": 286.2297 },
+    "20:5": { "name": "EPA", "mass_delta": 284.2140 },
+    "22:0": { "name": "Behenic", "mass_delta": 322.3236 },
+    "22:1": { "name": "Erucic", "mass_delta": 320.3079 },
+    "22:4": { "name": "Adrenic", "mass_delta": 314.2610 },
+    "22:5": { "name": "DPA", "mass_delta": 312.2453 },
+    "22:6": { "name": "DHA", "mass_delta": 310.2297 },
+    "24:0": { "name": "Lignoceric", "mass_delta": 350.3549 },
+    "24:1": { "name": "Nervonic", "mass_delta": 348.3392 }
+  },
+  "biochemical_deltas": {
+    "methylation_CH2": 14.0156,
+    "desaturation_H2_loss": -2.0156,
+    "PE_to_PS_delta": 44.0137,
+    "PE_to_PC_delta": 42.0470,
+    "hydration_H2O": 18.0106
+  }
+}
